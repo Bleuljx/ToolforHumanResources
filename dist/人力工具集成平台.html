@@ -887,6 +887,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
    * 7 考勤表头(浅蓝底99CCFF 宋体14加粗黑字) | 8 珊瑚红标红单元格 | 9 合计行(黄底加粗)
    * 10 黄表头单元格(FFFF00 宋体14加粗) | 11 数据+一位小数
    * 12 珊瑚红+两位小数 | 13 珊瑚红+一位小数 | 14 合计行+两位小数
+   * 19 淡黄FFF2CC底+加粗+两位小数（计薪工时0.1-0.9高亮） | 20 浅蓝底宋体14加粗黑字+水平居中垂直靠上（矩阵表头）
    */
   function stylesXml() {
     return HEAD +
@@ -901,7 +902,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       '<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><charset val="134"/></font>' +
       '<font><b/><sz val="11"/><color rgb="FFFF0000"/><name val="Calibri"/><charset val="134"/></font>' +
       '</fonts>' +
-      '<fills count="7">' +
+      '<fills count="8">' +
       '<fill><patternFill patternType="none"/></fill>' +
       '<fill><patternFill patternType="gray125"/></fill>' +
       '<fill><patternFill patternType="solid"><fgColor rgb="FF0070C0"/><bgColor indexed="64"/></patternFill></fill>' +
@@ -909,6 +910,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       '<fill><patternFill patternType="solid"><fgColor rgb="FFFF9999"/><bgColor indexed="64"/></patternFill></fill>' +
       '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFCC"/><bgColor indexed="64"/></patternFill></fill>' +
       '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>' +
       '</fills>' +
       '<borders count="2">' +
       '<border><left/><right/><top/><bottom/><diagonal/></border>' +
@@ -916,7 +918,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       '<top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border>' +
       '</borders>' +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="19">' +
+      '<cellXfs count="21">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
       '<alignment horizontal="center" vertical="top" wrapText="1"/></xf>' +
@@ -954,6 +956,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
       '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1">' +
       '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+      // 19: 淡黄FFF2CC底+加粗+两位小数（计薪工时0.1-0.9高亮）
+      '<xf numFmtId="164" fontId="2" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
+      '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+      // 20: 浅蓝底99CCFF 宋体14加粗黑字 水平居中垂直靠上（矩阵表头）
+      '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
+      '<alignment horizontal="center" vertical="top" wrapText="1"/></xf>' +
       '</cellXfs>' +
       '<cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles>' +
       '<dxfs count="0"/>' +
@@ -2041,6 +2049,20 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   function isMiss(v) { return v === '缺卡'; }
 
+  /* 考勤差异明细纳入规则（纯函数，可单测）：
+     1) 签到、签退都缺卡 → 一律排除（最高优先级，即使考勤结果非正常）
+     2) 考勤结果非'正常'（迟到/早退/旷工/休等）→ 纳入
+     3) 恰好一个缺卡 → 纳入
+     4) 其余不纳入 */
+  function isDiff(r) {
+    var res = toStr(r.result), cinM = isMiss(r.cin), coutM = isMiss(r.cout);
+    if (cinM && coutM) return false;
+    if (res && res !== '正常') return true;
+    if (cinM && !coutM) return true;
+    if (!cinM && coutM) return true;
+    return false;
+  }
+
   /* 分钟 → "HH:MM" */
   function minToHM(v) {
     if (v == null || v === '' || v === '缺卡') return v == null ? '' : v;
@@ -2709,14 +2731,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     shrRows.sort(function (a, b) { var d = toStr(a[0]).localeCompare(toStr(b[0]), 'zh'); return d || toStr(a[3]).localeCompare(toStr(b[3])); });
     rmRows.sort(function (a, b) { var d = toStr(a[1]).localeCompare(toStr(b[1]), 'zh'); return d || toStr(a[3]).localeCompare(toStr(b[3])); });
 
-    /* --- 考勤差异明细（合并两类） --- */
-    function isDiff(r) {
-      var res = toStr(r.result), cinM = isMiss(r.cin), coutM = isMiss(r.cout);
-      if (res && res !== '正常') return true;
-      if (cinM && !coutM) return true;
-      if (!cinM && coutM) return true;
-      return false;
-    }
+    /* --- 考勤差异明细（合并两类，纳入规则见模块级 isDiff） --- */
     var UNI_HEAD_ = UNI_HEAD;
     function toUni(r) {
       var m = rosterOf(r);
@@ -2796,55 +2811,72 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     });
     var statRowsRm = buildStat(rmOnlyRows);
 
-    /* --- 工时矩阵（计薪工时/理论工时/打卡工时/工时比对） --- */
-    var people = [], peopleIdx = {};
-    allRows.forEach(function (r) {
-      var key = norm(r.code) + '|' + norm(r.name);
-      if (!peopleIdx[key]) {
-        var m = rosterOf(r);
-        peopleIdx[key] = {
-          name: r.name, code: r.code,
-          project: m ? m.row.project : (r.project || ''),
-          hire: m ? m.row.hire : '', leave: m ? m.row.leave : '',
-          days: {}, attMatched: true
-        };
-        people.push(key);
-      }
-      var p = peopleIdx[key];
-      if (!r.date) return;
-      var d = p.days[r.date] = p.days[r.date] || { cards: 0, shifts: 0, theory: 0, theoryN: 0 };
-      d.shifts++;
-      if (typeof r.cin === 'number') d.cards++;
-      if (typeof r.cout === 'number') d.cards++;
-      var th = null;
-      if (typeof r.theory === 'number' && r.theory > 0) th = r.theory;
-      else if (r.sh) th = round1(shiftHours(r.sh));
-      if (th != null) { d.theory += th; d.theoryN++; }
-    });
-
+    /* --- 工时矩阵（计薪工时/理论工时/打卡工时/工时比对） ---
+       通用构建：rows=考勤行数组，产出按人×日期的 计薪/理论/打卡 三张矩阵
+       计薪工时=照搬打卡折算（1班次0.5/卡、≥2班次0.25/卡、封顶1）
+       打卡工时=（计薪时长+补卡工时+工作日加班+休息日加班+法定节假日）按天求和 */
     var days = monthDays(minD);
-    /* 矩阵表排序：项目为主Key、姓名为次Key */
-    people.sort(function (a, b) {
-      var pa = peopleIdx[a], pb = peopleIdx[b];
-      var d = toStr(pa.project).localeCompare(toStr(pb.project), 'zh');
-      if (d) return d;
-      return toStr(pa.name).localeCompare(toStr(pb.name), 'zh');
-    });
-    var payMatrix = [], theoryMatrix = [];
-    people.forEach(function (key) {
-      var p = peopleIdx[key];
-      var payRow = [p.project, p.hire, p.leave, p.name];
-      var thRow = [p.project, p.hire, p.leave, p.name];
-      days.forEach(function (dd) {
-        var d = p.days[fullDate(minD, dd)];
-        if (!d) { payRow.push(''); thRow.push(''); return; }
-        var weight = d.shifts <= 1 ? 0.5 : 0.25;
-        payRow.push(round2(Math.min(d.cards * weight, 1)));
-        thRow.push(d.theoryN > 0 ? round1(d.theory) : '');
+    function buildMatrices(rows) {
+      var ppl = [], idx = {};
+      rows.forEach(function (r) {
+        var key = norm(r.code) + '|' + norm(r.name);
+        if (!idx[key]) {
+          var m = rosterOf(r);
+          idx[key] = {
+            name: r.name, code: r.code,
+            project: m ? m.row.project : (r.project || ''),
+            hire: m ? m.row.hire : '', leave: m ? m.row.leave : '',
+            days: {}
+          };
+          ppl.push(key);
+        }
+        var p = idx[key];
+        if (!r.date) return;
+        var d = p.days[r.date] = p.days[r.date] || { cards: 0, shifts: 0, theory: 0, theoryN: 0, punch: 0, punchN: 0 };
+        d.shifts++;
+        if (typeof r.cin === 'number') d.cards++;
+        if (typeof r.cout === 'number') d.cards++;
+        var th = null;
+        if (typeof r.theory === 'number' && r.theory > 0) th = r.theory;
+        else if (r.sh) th = round1(shiftHours(r.sh));
+        if (th != null) { d.theory += th; d.theoryN++; }
+        var pv = numOr(r.payh), bv = numOr(r.buka);
+        var o1 = numOr(r.ot1), o2 = numOr(r.ot2), o3 = numOr(r.ot3);
+        if (pv != null || bv != null || o1 != null || o2 != null || o3 != null) {
+          d.punch += (pv || 0) + (bv || 0) + (o1 || 0) + (o2 || 0) + (o3 || 0);
+          d.punchN++;
+        }
       });
-      payMatrix.push(payRow);
-      theoryMatrix.push(thRow);
-    });
+      /* 矩阵表排序：项目为主Key、姓名为次Key */
+      ppl.sort(function (a, b) {
+        var pa = idx[a], pb = idx[b];
+        var dd = toStr(pa.project).localeCompare(toStr(pb.project), 'zh');
+        return dd || toStr(pa.name).localeCompare(toStr(pb.name), 'zh');
+      });
+      var pay = [], theory = [], punch = [];
+      ppl.forEach(function (key) {
+        var p = idx[key];
+        var payRow = [p.project, p.hire, p.leave, p.name];
+        var thRow = [p.project, p.hire, p.leave, p.name];
+        var punRow = [p.project, p.hire, p.leave, p.name];
+        days.forEach(function (dd) {
+          var d = p.days[fullDate(minD, dd)];
+          if (!d) { payRow.push(''); thRow.push(''); punRow.push(''); return; }
+          var weight = d.shifts <= 1 ? 0.5 : 0.25;
+          payRow.push(round2(Math.min(d.cards * weight, 1)));
+          thRow.push(d.theoryN > 0 ? round1(d.theory) : '');
+          punRow.push(d.punchN > 0 ? round2(d.punch) : '');
+        });
+        pay.push(payRow); theory.push(thRow); punch.push(punRow);
+      });
+      return { people: ppl, pay: pay, theory: theory, punch: punch };
+    }
+    /* 外包文件矩阵：全部人员（SHR剔除机师岗 + RM机师岗）汇总 */
+    var allMat = buildMatrices(allRows);
+    var people = allMat.people;
+    var payMatrix = allMat.pay, theoryMatrix = allMat.theory;
+    /* 机师岗文件矩阵：仅 RM 人员 */
+    var rmMat = buildMatrices(rmOnlyRows);
 
     /* --- 在职无出勤（匹配外包+机师岗全部考勤记录） --- */
     var noAtt = [];
@@ -2870,6 +2902,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       diffRows: diffRows, detailRows: detailRows, statRows: statRows,
       detailRowsRm: detailRowsRm, statRowsRm: statRowsRm,
       payMatrix: payMatrix, theoryMatrix: theoryMatrix, matrixDays: days,
+      rmPayMatrix: rmMat.pay, rmTheoryMatrix: rmMat.theory, rmPunchMatrix: rmMat.punch,
       noAttendance: noAtt,
       peopleCount: people.length,
       fileNameShr: '【考勤差异】' + city + periodLabel + '.xlsx',
@@ -2951,13 +2984,31 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     return c === 13 ? 3 : 2;
   }
 
-  function matrixSpec(name, days, rows) {
+  /* 计薪工时 0.1~0.9 高亮：淡黄FFF2CC底+加粗+两位小数（样式19）
+     第 0~3 列是 项目/入职/离职/姓名，从第 4 列起才是日期工时格 */
+  function matrixStyleFn(rows, highlight) {
+    if (!highlight) return null;
+    return function (r, cc) {
+      if (cc < 4) return 2;
+      var v = rows[r] && rows[r][cc];
+      if (typeof v === 'number' && v >= 0.1 && v <= 0.9) return 19;
+      return 2;
+    };
+  }
+  /* opt: {highlight:bool, tall:bool}
+     tall=true → 数据行高 0.83cm(≈23.5pt)、表头行高 1.06cm(≈30pt)、表头顶端居中(样式20)、开筛选 */
+  function matrixSpec(name, days, rows, opt) {
+    opt = opt || {};
     var header = MATRIX_HEAD4.concat(days);
-    return {
-      name: name, header: header, rows: rows, headerStyle: 7,
+    var spec = {
+      name: name, header: header, rows: rows,
+      headerStyle: opt.tall ? 20 : 7,
       dataStyle: 2, freeze: { x: 4, y: 1 },
       cols: [18, 12, 12, 10].concat(days.map(function () { return 5; }))
     };
+    if (opt.highlight) spec.styleFn = matrixStyleFn(rows, true);
+    if (opt.tall) { spec.rowHeight = 23.5; spec.headerHeight = 30; spec.autoFilter = true; }
+    return spec;
   }
 
   /* 蝶城结果 → xlsx spec 数组 */
@@ -3008,9 +3059,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         cols: [10, 12, 10, 11, 16, 13, 8, 8, 8, 8, 9, 13, 8, 8, 8, 7, 9, 9, 8, 8, 8, 9, 9, 9]
       });
       specs.push(statSpec(c, c.statRows.slice(), c.statRows.length));
-      specs.push(matrixSpec('计薪工时', c.matrixDays, c.payMatrix));
+      specs.push(matrixSpec('计薪工时', c.matrixDays, c.payMatrix, { highlight: true, tall: true }));
       specs.push(matrixSpec('理论工时', c.matrixDays, c.theoryMatrix));
-      specs.push(matrixSpec('打卡工时', c.matrixDays, []));
+      specs.push(matrixSpec('打卡工时', c.matrixDays, [], { tall: true }));
       specs.push(matrixSpec('工时比对', c.matrixDays, []));
       files.push({ name: c.fileNameShr, sheets: specs });
     }
@@ -3030,6 +3081,11 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         });
       }
       rmSpecs.push(statSpec(c, c.statRowsRm.slice(), c.statRowsRm.length));
+      /* 机师岗文件：补四张工时矩阵（仅 RM 人员），取数规则与外包一致 */
+      rmSpecs.push(matrixSpec('计薪工时', c.matrixDays, c.rmPayMatrix, { highlight: true, tall: true }));
+      rmSpecs.push(matrixSpec('理论工时', c.matrixDays, c.rmTheoryMatrix));
+      rmSpecs.push(matrixSpec('打卡工时', c.matrixDays, c.rmPunchMatrix, { tall: true }));
+      rmSpecs.push(matrixSpec('工时比对', c.matrixDays, []));
       files.push({ name: c.fileNameRm, sheets: rmSpecs });
     }
     return files;
@@ -3079,6 +3135,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     parseRoster: parseRoster,
     parseAttFile: parseAttFile,
     processAll: processAll,
+    matrixStyleFn: matrixStyleFn,
+    isDiff: isDiff,
     inferFileCityFor: function (parsed, rosterRows) {
       return inferFileCity(parsed, buildRosterIndex(rosterRows || []));
     },

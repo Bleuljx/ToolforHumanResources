@@ -32,6 +32,7 @@
    * 7 考勤表头(浅蓝底99CCFF 宋体14加粗黑字) | 8 珊瑚红标红单元格 | 9 合计行(黄底加粗)
    * 10 黄表头单元格(FFFF00 宋体14加粗) | 11 数据+一位小数
    * 12 珊瑚红+两位小数 | 13 珊瑚红+一位小数 | 14 合计行+两位小数
+   * 19 淡黄FFF2CC底+加粗+两位小数（计薪工时0.1-0.9高亮） | 20 浅蓝底宋体14加粗黑字+水平居中垂直靠上（矩阵表头）
    */
   function stylesXml() {
     return HEAD +
@@ -46,7 +47,7 @@
       '<font><b/><sz val="11"/><color theme="1"/><name val="Calibri"/><charset val="134"/></font>' +
       '<font><b/><sz val="11"/><color rgb="FFFF0000"/><name val="Calibri"/><charset val="134"/></font>' +
       '</fonts>' +
-      '<fills count="7">' +
+      '<fills count="8">' +
       '<fill><patternFill patternType="none"/></fill>' +
       '<fill><patternFill patternType="gray125"/></fill>' +
       '<fill><patternFill patternType="solid"><fgColor rgb="FF0070C0"/><bgColor indexed="64"/></patternFill></fill>' +
@@ -54,6 +55,7 @@
       '<fill><patternFill patternType="solid"><fgColor rgb="FFFF9999"/><bgColor indexed="64"/></patternFill></fill>' +
       '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFCC"/><bgColor indexed="64"/></patternFill></fill>' +
       '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFF00"/><bgColor indexed="64"/></patternFill></fill>' +
+      '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>' +
       '</fills>' +
       '<borders count="2">' +
       '<border><left/><right/><top/><bottom/><diagonal/></border>' +
@@ -61,7 +63,7 @@
       '<top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border>' +
       '</borders>' +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="19">' +
+      '<cellXfs count="21">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
       '<alignment horizontal="center" vertical="top" wrapText="1"/></xf>' +
@@ -99,6 +101,12 @@
       '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
       '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1">' +
       '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+      // 19: 淡黄FFF2CC底+加粗+两位小数（计薪工时0.1-0.9高亮）
+      '<xf numFmtId="164" fontId="2" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
+      '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+      // 20: 浅蓝底99CCFF 宋体14加粗黑字 水平居中垂直靠上（矩阵表头）
+      '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
+      '<alignment horizontal="center" vertical="top" wrapText="1"/></xf>' +
       '</cellXfs>' +
       '<cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles>' +
       '<dxfs count="0"/>' +
