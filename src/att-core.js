@@ -189,7 +189,8 @@
 
   var DEFAULT_CONFIG = {
     rosterMap: { code: '', name: '', project: '', city: '', hire: '', leave: '' }, // 花名册列名映射
-    machineShifts: []        // 页面勾选的"机师岗"岗位名单（SHR 中这些岗位整行剔除）
+    machineShifts: [],       // 下拉多选的剔除岗位（SHR 中这些岗位整行剔除）
+    machineExtraText: ''     // 「其他」输入框原文：岗位名或员工姓名，逗号/空格/顿号/分号分隔
   };
 
   /* ---------------- 花名册 ---------------- */
@@ -598,15 +599,42 @@
     return { byCode: byCode, byName: byName, byDisplay: byDisplay, nameList: nameList };
   }
 
+  /* 「其他」输入框：逗号 / 空格 / 顿号 / 分号分隔，去重后返回原词 */
+  function splitTokens(s) {
+    var out = [], seen = {};
+    String(s == null ? '' : s).split(/[,，、;；\s]+/).forEach(function (t) {
+      var v = t.trim();
+      if (!v) return;
+      var k = norm(v);
+      if (!k || seen[k]) return;
+      seen[k] = 1; out.push(v);
+    });
+    return out;
+  }
+
+  /* 外包考勤剔除判定：下拉选中的岗位按岗位匹配；「其他」里的词既能当岗位名也能当员工姓名 */
+  function makeExcludeFilter(cfg) {
+    var postSet = {}, nameSet = {};
+    (cfg.machineShifts || []).forEach(function (p) { if (p) postSet[norm(p)] = 1; });
+    splitTokens(cfg.machineExtraText).forEach(function (t) {
+      postSet[norm(t)] = 1;   // 也能填下拉里没有的岗位名
+      nameSet[norm(t)] = 1;   // 也能填员工姓名
+    });
+    return function (r) {
+      if (r.post && postSet[norm(r.post)]) return true;
+      if (r.name && nameSet[norm(r.name)]) return true;
+      return false;
+    };
+  }
+
   function processCity(city, shrRowsIn, rmRowsIn, rosterIdx, cfg, addProblem, globalAttIdx) {
-    var machineSet = {};
-    (cfg.machineShifts || []).forEach(function (p) { if (p) machineSet[norm(p)] = 1; });
+    var isExcluded = makeExcludeFilter(cfg);
 
     var allRows = [];
 
-    /* --- SHR：剔除机师岗（不写入问题清单） --- */
+    /* --- SHR：剔除指定岗位 / 指定员工（不写入问题清单） --- */
     shrRowsIn.forEach(function (r) {
-      if (r.post && machineSet[norm(r.post)]) return;
+      if (isExcluded(r)) return;
       allRows.push(r);
     });
     rmRowsIn.forEach(function (r) { allRows.push(r); });
@@ -1242,6 +1270,8 @@
     processAll: processAll,
     matrixStyleFn: matrixStyleFn,
     isDiff: isDiff,
+    splitTokens: splitTokens,
+    makeExcludeFilter: makeExcludeFilter,
     inferFileCityFor: function (parsed, rosterRows) {
       return inferFileCity(parsed, buildRosterIndex(rosterRows || []));
     },

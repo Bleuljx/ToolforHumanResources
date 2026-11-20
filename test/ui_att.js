@@ -57,9 +57,27 @@ async function saveBlob(d) {
   assert(doc.querySelectorAll('#list-rm .file-item').length === 1, 'RM 文件卡片出现');
   assert(doc.querySelectorAll('#list-roster .file-item').length === 1, '花名册卡片出现');
   assert(/识别到 9 名员工/.test(doc.querySelector('#list-roster').textContent), '花名册识别 9 人（自动猜映射）');
-  assert(doc.querySelectorAll('#machinePanel [data-machine]').length >= 4, '机师岗清单列出岗位');
-  const machineChecked = doc.querySelector('#machinePanel input[data-machine][checked], #machinePanel input[data-machine]:checked');
-  assert(!!machineChecked, '含「机师」的岗位已默认勾选');
+  // 配置区新排版：左侧 2 列字段网格（无说明列）、右侧多选下拉 + 其他输入 + chips
+  const msel = doc.querySelector('#machineSel');
+  assert(!!msel && msel.multiple && msel.options.length >= 4,
+    '剔除岗位改用原生多选下拉并列出岗位，实际 ' + (msel && msel.options.length));
+  assert(!!msel && Array.from(msel.options).some(o => o.selected && /机师/.test(o.value)),
+    '含「机师」的岗位已默认选中');
+  assert(!!doc.querySelector('#machineExtra'), '「其他」输入框存在');
+  assert(doc.querySelectorAll('#machineChips .ex-chip').length >= 1, '当前剔除项以 chips 展示');
+  assert(doc.querySelectorAll('#rosterPanel [data-rmap]').length === 6, '6 个花名册字段映射下拉');
+  assert(!/说明/.test(doc.querySelector('#rosterPanel').textContent), '花名册映射已去掉「说明」列');
+  assert(/花名册字段映射与岗位剔除/.test(doc.querySelector('#viewAttendance').textContent), '配置卡标题已更新');
+  assert(/1fr\) minmax\(0,1fr\) minmax\(0,1\.6fr\)/.test(html), '结果卡宽度比例改为 1:1:1.6');
+  // 「其他」既支持岗位名也支持员工姓名（核心匹配规则单测）
+  const C = win.AttCore;
+  assert(C.splitTokens('机师岗, 张三 李四、王五；赵六').length === 5, '其他输入按逗号/空格/顿号/分号拆分');
+  assert(C.makeExcludeFilter({ machineShifts: [], machineExtraText: '张三 李四' })({ post: '保洁岗', name: '李四' }) === true,
+    '其他输入可按员工姓名剔除');
+  assert(C.makeExcludeFilter({ machineShifts: [], machineExtraText: '维保机师' })({ post: '维保机师', name: '孙八' }) === true,
+    '其他输入可按岗位名剔除');
+  assert(C.makeExcludeFilter({ machineShifts: ['机师岗'], machineExtraText: '' })({ post: '保洁岗', name: '钱七' }) === false,
+    '未命中的外包行保留');
 
   // 2. 生成
   doc.querySelector('#btnAttRun').click();

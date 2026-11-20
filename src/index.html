@@ -182,7 +182,7 @@
   .rc-stats span{font-size:11.5px;color:var(--ink-3)}
   .rc-actions{display:flex;gap:8px;flex-wrap:wrap}
   /* 考勤结果三模块大卡 */
-  .module-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+  .module-cards{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.6fr);gap:14px;margin-bottom:16px}
   .module-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;position:relative}
   .mc-head{display:flex;flex-direction:column;gap:10px;align-items:stretch}
   .mc-title{font-size:15px;font-weight:600;color:var(--ink);display:block}
@@ -219,7 +219,34 @@
   .att-zone .drop{padding:22px 14px}
   .att-zone .drop .d-main{font-size:13px}
   .att-file-meta{font-size:12px;color:var(--ink-3);line-height:1.6;word-break:break-all}
-  .att-panels{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start}
+  .att-panels{display:grid;grid-template-columns:1.25fr 1fr;gap:22px;align-items:start}
+  /* 配置区：两个小节标题 + 左侧紧凑字段网格 + 右侧浅绿剔除卡 */
+  .sec-h{font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:8px;margin:0 0 14px}
+  .sec-h::before{content:"";width:3px;height:13px;border-radius:1px;background:var(--accent)}
+  .rmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 14px}
+  .rmap-item{display:flex;flex-direction:column;gap:6px;min-width:0}
+  .rmap-item>span{font-size:11.5px;color:var(--ink-3)}
+  .rmap-item select{height:32px;font-size:12.5px}
+  .rmap-foot{margin-top:14px;font-size:12px;color:var(--ink-3)}
+  .rmap-foot b{color:var(--accent);font-weight:600}
+  .ex-card{border:1px solid #d8e8de;border-radius:10px;background:var(--accent-50);padding:14px 16px}
+  .ex-sub{font-size:11.5px;color:var(--ink-2);line-height:1.65;margin-bottom:13px}
+  .ex-fld{display:flex;flex-direction:column;gap:6px;margin-bottom:13px}
+  .ex-fld>span{font-size:11.5px;color:var(--ink-2);font-weight:500}
+  .ex-fld>span em{font-style:normal;color:var(--ink-3);font-weight:400}
+  .ex-sel{height:auto!important;min-height:96px;padding:4px 6px!important;padding-right:6px!important;
+          appearance:auto;background-image:none!important;font-size:12.5px;line-height:1.6}
+  .ex-sel option{padding:3px 6px;border-radius:4px}
+  .ex-sel option:checked{background:var(--accent)!important;color:#fff}
+  .ex-input{height:32px!important;font-size:12.5px}
+  .ex-chips-head{font-size:11.5px;color:var(--ink-3);margin:2px 0 8px}
+  .ex-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:110px;overflow:auto}
+  .ex-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;background:#fff;border:1px solid #c5dfd0;
+           color:var(--accent-dark);border-radius:14px;padding:3px 7px 3px 10px;font-size:11.5px;line-height:1.5}
+  .ex-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ex-chip button{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:14px;line-height:1;padding:0 1px}
+  .ex-chip button:hover{color:var(--red)}
+  .ex-empty{font-size:11.5px;color:var(--ink-3)}
   .att-problems{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-2)}
   .att-prob-item{line-height:1.6}
   .att-prob-item.sev-error{color:var(--red)}
@@ -328,6 +355,11 @@
   .help-body ol{margin:6px 0 10px;padding-left:22px;font-size:13px;color:#3c4854;line-height:1.9}
   .help-body .help-tip{background:#fff6e5;border:1px solid #f0dfb8;border-radius:8px;padding:8px 12px;font-size:12.5px;color:#7a5b16;margin:8px 0;line-height:1.8}
   .help-body b{color:#26313c}
+  .help-body h5{margin:16px 0 6px;font-size:13.5px;color:#26313c;font-weight:600}
+  .help-body .help-fields{margin:6px 0 10px;padding:0 0 0 4px;list-style:none}
+  .help-body .help-fields li{margin:6px 0;font-size:13px;color:#3c4854;line-height:1.8;padding-left:16px;position:relative}
+  .help-body .help-fields li::before{content:'';position:absolute;left:2px;top:10px;width:6px;height:6px;border-radius:50%;background:#217346}
+  .help-body .help-fields b{color:#217346}
   .idle-fld{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-2)}
   .idle-fld select,.idle-fld input[type=date],.idle-fld input[type=text],.idle-fld input[type=number]{
     height:32px;font-size:12.5px;border:1px solid var(--line);border-radius:7px;padding:0 9px;background:#fff;color:var(--ink);font-family:inherit;outline:none}
@@ -517,7 +549,7 @@
 
       <!-- 配置 -->
       <section class="card">
-        <div class="card-h"><h2>花名册与机师岗配置</h2></div>
+        <div class="card-h"><h2>花名册字段映射与岗位剔除</h2><span class="note">上传外包考勤后自动列出岗位</span></div>
         <div class="att-panels">
           <div id="rosterPanel"></div>
           <div id="machinePanel"></div>
@@ -654,50 +686,97 @@
 
             <section id="sec-absent">
               <h4>一、超7天未出勤核对</h4>
-              <div class="part"><span class="pk">是什么</span><div class="pv">找出考核周期里<b>连续/累计没出勤达到门槛天数</b>的员工，生成一份可下发核对的明细表，并支持把上期反馈结果导回来继续核对。</div></div>
+              <div class="part"><span class="pk">是什么</span><div class="pv">找出核算周期里<b>没有出勤的天数达到门槛</b>的员工，生成一份可下发核对的明细表，并支持把上期反馈结果导回来继续核对。<b>无出勤天数 = 核算周期日历天数 − 计薪天数</b>（月中入职 / 离职的人按在职区间封顶），达到门槛天数（默认 7 天）就上榜。</div></div>
               <div class="part"><span class="pk">怎么做</span><div class="pv">
-                <p><b>上传什么文件（在三个虚线框分别上传）：</b></p>
+                <p><b>第 1 步：上传三个文件（各对应一个虚线框）</b></p>
                 <ol>
-                  <li><b>考勤统计结果导出</b>——从 SHR 系统导出的考勤统计表，需含员工编码/姓名、计薪天数、应服务工时等列；</li>
-                  <li><b>人员花名册</b>——含工号、姓名、蝶城、入职、离职等列（和考勤模块共用）；</li>
-                  <li><b>上期反馈结果</b>（可选）——本工具上次导出的异常明细，回传后会自动扣除已反馈的请假重叠天数、剔除已离职人员。</li>
+                  <li><b>① 考勤统计结果导出</b>——SHR 系统的月度考勤统计表。<b>必需列：SHRid（或工号 / 员工编码）、计薪天数、应服务工时</b>；姓名、蝶城、项目列有更好。列名是按别名自动识别的（例如「出勤天数」也会被认成「计薪天数」），识别错了在文件卡片下的下拉里改。工具还会按「计薪天数的最大值」自动反推数据统计到了几号（最大值 10 → 数据只到 10 号）并在页面提示，避免把"还没到月底"误判成异常。</li>
+                  <li><b>② 人员花名册</b>——校验员工是否在职、在职月份区间。<b>必需列：员工编码（和 SHRid 比对）、员工姓名</b>；蝶城、入职日期、离职日期列建议带上。这份花名册和「考勤处理」「文件重命名」模块通用。</li>
+                  <li><b>③ 上期反馈结果</b>（可选）——把上期本工具导出的《超7天无出勤异常明细-时间戳.xlsx》传回来，蝶城填过的反馈列会被自动读取：<b>异常原因</b>（如"请假"）、<b>请假开始 / 结束时间、请假天数</b>、是否已报离、备注。处理规则：已报离 / 离职 → 本期直接剔除备查；请假 → 按请假区间与本核算期的<b>重叠天数</b>从无出勤天数里扣掉；本期刚离职的人算出来的是"假异常"，也会剔除备查。</li>
                 </ol>
-                <p>上传后核对文件卡片下的<b>字段映射</b>（自动猜列，猜错用下拉改），在「核对设置」里设门槛天数（默认 7 天）和排除名单（默认排除"机师岗"），再点顶栏「开始核对」。</p>
+                <p><b>第 2 步：核对字段映射</b>——三个文件卡片下方的下拉就是「表格列 ↔ 工具字段」的对应关系，自动猜的，猜错就手动改，改完立即生效。</p>
+                <p><b>第 3 步：设置核对参数</b>（页面上方「核对设置」区）——<b>核算周期</b>起止日期；<b>门槛天数</b>（无出勤 ≥ 几天上榜，默认 7）；<b>排除名单</b>（默认"机师岗"，命中的岗位不参与核对，可改成其他岗位名，多个用逗号隔开）。</p>
+                <p><b>第 4 步：点顶栏「开始核对」。</b></p>
               </div></div>
-              <div class="part"><span class="pk">会有什么结果</span><div class="pv">生成 <code>超7天无出勤异常明细-时间戳.xlsx</code>，含两张表：<b>出勤异常</b>（上榜人员，带 6 列空白浅黄的反馈填写区，无出勤天数标红）和<b>在职无出勤记录</b>（完全没有考勤记录、按在职天数估算的人）。把这份表发给蝶城填写反馈列，下次当"上期反馈结果"传回来即可。</div></div>
+              <div class="part"><span class="pk">会有什么结果</span><div class="pv">生成 <code>超7天无出勤异常明细-时间戳.xlsx</code>，两张表：<b>出勤异常</b>——上榜人员明细，右侧有 <b>6 列浅黄色空白反馈区（异常原因 / 请假开始时间 / 请假结束时间 / 请假天数 / 是否已报离 / 备注）</b>，发给各蝶城填写，无出勤天数标红、冻结首行并带筛选；<b>在职无出勤记录</b>——考勤统计表里查不到工号、但花名册显示在职的人，无出勤天数按本期在职的日历天数估算（常见原因：劳务外包不在考勤采集范围、已离职被清档、长期请假、导出漏了这批人）。<br>把填好反馈的表下次当「上期反馈结果」传回来即可闭环。</div></div>
             </section>
 
             <section id="sec-att">
               <h4>二、考勤处理</h4>
-              <div class="part"><span class="pk">是什么</span><div class="pv">对 SHR（外包）和 RM（机师岗）原始考勤导出做<b>打卡校准、迟到早退扣款重算</b>，按蝶城生成正式考勤差异表和多张工时矩阵。</div></div>
+              <div class="part"><span class="pk">是什么</span><div class="pv">对 SHR（外包）和 RM（机师岗）原始考勤导出做<b>打卡校准、迟到早退扣款重算</b>，按蝶城生成正式考勤差异表、迟到早退明细 / 统计和多张工时矩阵。</div></div>
               <div class="part"><span class="pk">怎么做</span><div class="pv">
-                <p><b>上传什么文件（三个虚线框）：</b></p>
+                <p><b>第 1 步：上传三个文件</b>（一个文件一个蝶城，多个蝶城的文件可一起传，系统按文件名和内容自动归蝶城）：</p>
                 <ol>
-                  <li><b>外包 SHR 原始导出</b>——工作表名含"SHR员工考勤"，需含姓名/工号、日期、班次、签到、签退、理论工时、计薪时长等列；</li>
-                  <li><b>机师岗 RM 原始导出</b>——一般取第 1 张表，需含账号、姓名、日期、班次、签到、签退、计薪时长、补卡工时、三类加班等列；</li>
-                  <li><b>人员花名册</b>——用于补项目/蝶城、匹配入职离职日期，列名猜错可在卡片下改映射。</li>
+                  <li><b>① 外包 SHR 原始导出</b>——自动找工作表名含「SHR员工考勤」的那张表。需要这些列（按别名自动识别，缺列会在问题清单提示）：
+                    <ul class="help-fields">
+                      <li>员工姓名、员工编号、岗位名称</li>
+                      <li>日期、班次时间、签到时间、签退时间</li>
+                      <li>理论工时、计薪时长、实际工时</li>
+                      <li>考勤结果、异常考勤、补卡工时（有则更准）</li>
+                    </ul>
+                  </li>
+                  <li><b>② 机师岗 RM 原始导出</b>——取第 1 张工作表。需要列：
+                    <ul class="help-fields">
+                      <li>账号（即工号）、姓名、岗位名称、蝶城</li>
+                      <li>日期、班次时间、签到时间、签退时间</li>
+                      <li>计薪时长、实际工时、补卡工时、旷工</li>
+                      <li>工作日加班、休息日加班、法定节假日（三类加班，有则导出）</li>
+                    </ul>
+                  </li>
+                  <li><b>③ 人员花名册</b>——补项目 / 蝶城、判断在职区间，字段说明见下。</li>
                 </ol>
-                <p>支持多个蝶城文件一起传。核对花名册映射、确认"机师岗"岗位清单后，点顶栏「开始生成」。</p>
+                <h5>花名册字段映射（6 个字段各管什么）</h5>
+                <ul class="help-fields">
+                  <li><b>员工编码 / 工号</b>——认人的第一凭据。匹配规则是<b>工号优先、姓名兜底</b>：先按工号精确对，对不上再按姓名；工号识别错了会整批认错人，务必核对。</li>
+                  <li><b>姓名</b>——真实姓名列。注意花名册经常<b>同时有「姓名」和「员工姓名」两列</b>（其中一列可能带称谓 / 别名），工具默认以「员工姓名」为准；如果结果里出现明显的错名，到下拉里换成真正的姓名列。</li>
+                  <li><b>项目</b>——员工所属服务项目，写进输出统计表和矩阵表的「项目」列；考勤表自己没项目列时，一律以花名册为准。</li>
+                  <li><b>蝶城 / 组织</b>——决定这个人归属哪个蝶城；「在职无出勤」名单就是按这一列筛的。</li>
+                  <li><b>入职日期 / 离职日期</b>——判定员工在考勤周期内是否在职、在职区间。月中入职 / 离职的人只统计在职那段时间，不会因"全月没考勤"被误判。</li>
+                </ul>
+                <h5>外包考勤岗位剔除</h5>
+                <ul class="help-fields">
+                  <li><b>① 岗位下拉</b>（按住 Ctrl / Shift 可多选）——列出外包考勤里出现过的所有岗位；<b>名字里带「机师」的岗位会自动勾上</b>，取消勾选后不会被自动加回来。</li>
+                  <li><b>② 其他输入框</b>——补填下拉里没有的<b>岗位名或员工姓名都行</b>（系统先按岗位整行剔除、再按姓名剔除个人），多个用逗号、空格、顿号或分号隔开。</li>
+                  <li><b>③ 已剔除 chips</b>——实时显示当前生效的剔除项，点 × 可删。</li>
+                  <li>剔除<b>只作用于外包考勤</b>，机师岗 RM 文件不受影响。</li>
+                </ul>
+                <h5>计算口径（工具自动执行，建议了解）</h5>
+                <div class="help-tip">· 迟到 / 早退扣款：到点前后 <b>30 分钟容差</b>算正常；迟到 ≤5 分钟不扣、≤15 分钟扣 10 元、≤120 分钟扣 20 元、超过 120 分钟不扣（早退同理）。<br>· 打卡校准：签退比本班次下班晚 30 分钟以上时，若能对应到下一班次的签到就归还给下一班次；否则当无效打卡，签退记缺卡并连带重算旷工和计薪工时，不会出现负数早退。<br>· 计薪工时矩阵：按有效打卡次数折算天数（1 个班次每卡 0.5、2 个班次每卡 0.25、封顶 1 天）；迟到早退的卡和补卡都算有效卡；为 0 的格子留空填亮黄，末列有每人出勤天数汇总。<br>· 理论工时：外包取「理论工时」列；机师岗按班次时间计算，班次是「休」的留空并提示。</div>
+                <p><b>第 2 步：核对上传卡片下方的识别结果</b>（蝶城、行数、识别出的列），<b>第 3 步：点顶栏「开始生成」</b>。单个文件识别失败不会中断整批，跑完后统一在问题清单里看原因。</p>
               </div></div>
-              <div class="part"><span class="pk">会有什么结果</span><div class="pv"><b>出几份文件，取决于你传了哪种考勤数据（不是每个蝶城固定两份）：</b><br>· 传了<b>外包 SHR</b> → 该蝶城出 <code>【考勤差异】蝶城起止日期.xlsx</code>（外包）——含 SHR员工考勤、考勤差异明细、迟到早退明细/统计，以及计薪工时、理论工时、打卡工时、工时比对四张矩阵（计薪工时里不满 1 天的淡黄、为 0 的留空填亮黄，末列有出勤天数汇总）；<br>· 传了<b>机师岗 RM</b> → 该蝶城出 <code>【考勤差异】蝶城机师岗起止日期.xlsx</code>（机师岗）——含 RM员工考勤、迟到早退明细/统计和同样四张工时矩阵；<br>· <b>只传了一种</b>就只出对应的那一份；<b>两种都传了</b>才是两份。<b>完全没有导入 RM 考勤也不会报错</b>，只是不生成机师岗文件。<br>· 无论几个蝶城，总会再出一份 <code>【考勤差异】M月迟到早退汇总.xlsx</code>（统计汇总+明细汇总+在职无出勤，带蝶城列）。<br>识别失败的文件不导出，点「下载问题清单」看原因。</div></div>
+              <div class="part"><span class="pk">会有什么结果</span><div class="pv"><b>出几份文件，取决于你传了哪种考勤数据（不是每个蝶城固定两份）：</b><br>· 传了<b>外包 SHR</b> → 该蝶城出 <code>【考勤差异】蝶城起止日期.xlsx</code>（外包）——含 SHR员工考勤、考勤差异明细、迟到早退明细/统计，以及计薪工时、理论工时、打卡工时、工时比对四张矩阵（计薪工时里不满 1 天的淡黄、为 0 的留空填亮黄，末列有出勤天数汇总）；<br>· 传了<b>机师岗 RM</b> → 该蝶城出 <code>【考勤差异】蝶城机师岗起止日期.xlsx</code>（机师岗）——含 RM员工考勤、迟到早退明细/统计和同样四张工时矩阵；<br>· <b>只传了一种</b>就只出对应的那一份；<b>两种都传了</b>才是两份。<b>完全没有导入 RM 考勤也不会报错</b>，只是不生成机师岗文件。<br>· 无论几个蝶城，总会再出一份 <code>【考勤差异】M月迟到早退汇总.xlsx</code>（统计汇总+明细汇总+在职无出勤，带蝶城列）。<br>结果区分三张模块卡（外包考勤结果 / 机师岗RM考勤结果 / 数据汇总）：把鼠标<b>悬停在卡片中部的数字统计区</b>可查看这一组生成了哪些文件；「数据汇总」固定只有一个文件，不提供清单。识别失败的文件不导出，点「下载问题清单」看原因。</div></div>
             </section>
 
             <section id="sec-salary">
               <h4>三、薪资报送</h4>
               <div class="part"><span class="pk">是什么</span><div class="pv">把各蝶城的<b>算薪表</b>一键转换成报送系统要求的四张表，自动匹配薪酬项目、处理备注和批注。</div></div>
               <div class="part"><span class="pk">怎么做</span><div class="pv">
-                <p><b>上传什么文件：</b><b>算薪表</b>（.xlsx/.xls/.xlsm），多个蝶城的文件可一次全拖进来。系统自动选工作表、识别表头（第几行是表头可在页面改）。</p>
-                <p>右侧「关系配置」三张卡（考勤报送 / 工资类目一键表 / 非循环项导入模板）的映射一般<b>不用动</b>，确认无误即可；填写「绑定核算任务」「业务日期」（全表统一，格式 yyyy-MM-dd）。若有薪酬项目没自动匹配上（页面标红），必须先在映射表里人工选好，否则无法生成。</p>
+                <p><b>第 1 步：上传算薪表</b>（.xlsx / .xls / .xlsm），多个蝶城的文件可一次全拖进来，每个文件各生成一套结果。蝶城名自动取自<b>文件名</b>——截取到「蝶城」或「蝶外」为止（如「钟公庙蝶城10月算薪.xlsx」→ 蝶城名"钟公庙"），可在页面手改。</p>
+                <p><b>第 2 步：核对工作表和表头</b>。系统自动选工作表（优先表名含「新公式」→ 含「算薪」→ 第 2 张）、自动识别表头行和数据起始行（「填写要求」这类说明行会自动跳过）；识别不准时，在文件卡片上改<b>工作表 / 表头行 / 数据起始行</b>即可，改完立即重读。</p>
+                <p><b>第 3 步：核对右侧「关系配置」三张卡</b>（点卡名就地展开）——一般<b>不用动</b>，确认无误即可：</p>
+                <ul class="help-fields">
+                  <li><b>考勤报送</b>——输出列（一人一行）← 算薪表列的对应关系；月休加班天数、定额值班费等自动计算的列不需要映射。</li>
+                  <li><b>工资类目一键表</b>——津补贴 / 扣罚类 / 成本类三大区间的<b>起止项目名</b>；公司换了项目名时在这里改起止两个字段名即可。</li>
+                  <li><b>非循环项导入模板</b>——算薪表每一列 → 系统 662 项薪酬项目的匹配。匹配分四档：完全一致 / 全半角空格归一后一致 / 去掉 WJ、WY 前缀后一致 / 模糊猜。<b>没匹配上的标红，必须在下拉里人工选定后才能生成</b>——防止导入系统时项目对不上号；下拉支持输入关键字搜索。</li>
+                </ul>
+                <p><b>第 4 步：填写「绑定核算任务」「业务日期」</b>（格式 yyyy-MM-dd，全表统一；任务编码可留空），<b>第 5 步：点顶栏「开始生成」</b>。</p>
+                <div class="help-tip">备注口径：单元格<b>批注</b>优先（自动去掉"作者:"前缀）；没有批注、且列在备注兜底区间内才用源表备注列兜底；扣款类金额一律<b>取源表原值、不取反</b>（导入系统会自动算正负，人工改正负反而会算错）。</div>
               </div></div>
-              <div class="part"><span class="pk">会有什么结果</span><div class="pv">点顶栏「开始生成」后依次下载四份 xlsx：<br>① <code>考勤报送.xlsx</code>（一人一行）；② <code>工资类目一键表.xlsx</code>（一人多行长表）；③ <code>非循环项导入模板.xlsx</code>（7 列，E 列薪酬项目从 662 项里匹配）；④ <code>非循环项导入(宽表).xlsx</code>（一行一人，各薪酬项目横向铺开，备注汇总了批注和源表备注）。生成前有问题清单可查看，避免导入失败。</div></div>
+              <div class="part"><span class="pk">会有什么结果</span><div class="pv">点顶栏「开始生成」后依次下载四份 xlsx：<br>① <code>考勤报送.xlsx</code>——一人一行，考勤口径汇总；② <code>工资类目一键表.xlsx</code>——一人多行长表，按三大区间归好类；③ <code>非循环项导入模板.xlsx</code>——7 列（员工编码 / 员工姓名 / 绑定核算任务 / 业务日期 / 薪酬项目 / 项目值 / 备注说明），E 列薪酬项目原样取自系统 662 项、不做任何改写；④ <code>非循环项导入(宽表).xlsx</code>——一行一人、各薪酬项目横向铺开，备注自动汇总批注和源表备注（金额写在批注里的不会再拼一遍单元格金额）。<br>导出方式二选一：直接导出到文件夹（文件名带蝶城前缀，每蝶城一个子文件夹），或打包 zip「XX蝶城工资报送.zip」。生成前的问题清单可下载成 xlsx，逐条处理后重新生成。</div></div>
             </section>
 
             <section id="sec-rename">
               <h4>四、文件重命名</h4>
               <div class="part"><span class="pk">是什么</span><div class="pv">按花名册把员工档案资料<b>批量重命名</b>成上传系统要求的格式，并自动检查每人各类资料是否齐全。</div></div>
               <div class="part"><span class="pk">怎么做</span><div class="pv">
-                <p><b>上传什么文件：</b>① 先传<b>人员花名册</b>（必填，含调度中心/员工项目/员工编码/员工姓名，映射可改）；② 把资料文件拖进对应的 9 个模块窗口（一次可拖多个，或整个 zip 自动解包归类）。<b>投保证明特殊</b>：只传 1 个原始文件，系统按花名册全员复制重命名。</p>
-                <p>改名规则默认「姓名-工号-类型」，<b>工号-类型固定在最后不能改</b>，前面可点「＋ 新增段」加姓名、项目、日期或固定文字；后缀名、连接符可单独设置。确认后点顶栏「开始重命名」。</p>
+                <p><b>第 1 步：上传人员花名册</b>（必填）——需要 4 列：</p>
+                  <ul class="help-fields">
+                    <li><b>员工编码</b>——文件名里的工号段靠它认人；工号匹配只认<b>完整独立的一段</b>（用 -、_、空格等隔开），不会认「abcR001xyz」这种连写的。</li>
+                    <li><b>员工姓名</b>——姓名匹配可以是文件名里独立的一段，也可以只是其中的几个字（「张三的身份证.jpg」也能认出张三）。</li>
+                    <li><b>调度中心 / 员工项目</b>——<b>同名同姓时用来消歧</b>：文件名里带的项目段会先跟「员工项目」比、再跟「调度中心」比；两个都对不上就进问题清单，需要你按建议给文件名补加工号或项目。</li>
+                  </ul>
+                <p>映射猜错可在花名册卡片下的下拉里改。<b>第 2 步：把资料文件拖进对应的 9 个模块窗口</b>（一次可拖多个，或整个 zip 自动解包归类）。<b>投保证明特殊</b>：只传 1 个原始文件，系统按花名册全员复制重命名；传多个会直接拦截提示。</p>
+                <p><b>第 3 步：设置改名规则。</b>自定义段在前（姓名 / 项目 / 调度中心 / 日期 / 序号 / 固定文字，点「＋ 新增段」添加，段预览用花名册第一个人的真实信息实时渲染），<b>「工号-类型」是锁定尾段</b>、必须连在一起放在文件名最后（上传系统的硬性要求）；<b>后缀名</b>单独一个框——留空用原文件后缀，填了强制覆盖；段间连接符也可改。<b>第 4 步：点顶栏「开始重命名」。</b></p>
               </div></div>
               <div class="help-naming">
                 <div class="hn-title">📌 上传文件的命名要求（很重要，直接决定能否正确改名）</div>
@@ -709,7 +788,7 @@
                   <li>有效的分隔符包括：<code>- _ — · , ，、 ; ； 空格 ( ) （ ） [ ] 【 】</code>。</li>
                 </ol>
               </div>
-              <div class="part"><span class="pk">会有什么结果</span><div class="pv">结果区先显示统计卡片（文件数、员工数等），点「导出 zip」得到 <code>重命名结果-时间戳.zip</code>（按模块分组、超大自动拆包，把生成的 zip 按顺序全部上传即可）。打开「缺失检查」开关还能查出哪些员工缺了哪类资料。名字对不上、目标重名的文件不会改名，会列在「问题清单」里（可下载 xlsx），按建议改好后重新上传。<br>上传系统限制：单个附件 ≤ 50MB、每包解压后 ≤ 300MB、每包 ≤ 500 个文件，工具导出时自动拆包。</div></div>
+              <div class="part"><span class="pk">会有什么结果</span><div class="pv">结果区先显示统计卡片（文件数、员工数等），点「导出 zip」得到 <code>重命名结果-时间戳.zip</code>（按模块分组、超大自动拆包，把生成的 zip 按顺序全部上传即可）。打开「缺失检查」开关并勾选要查的资料类型（投保证明不参与），生成结果里会列出<b>每个员工缺了哪类资料</b>。名字对不上、目标重名的文件不会改名，会列在「问题清单」里（可下载 xlsx，含原文件名 / 失败原因 / 改正建议），按建议改好后重新上传。<br>上传系统限制：单个附件 ≤ 50MB、每包解压后 ≤ 300MB、每包 ≤ 500 个文件，工具导出时自动拆包（超过 50MB 的单个原始文件不打包，会列入问题清单提醒）。</div></div>
             </section>
 
             <section id="sec-faq">
@@ -718,7 +797,11 @@
               <p><b>Q：表头/字段识别错了？</b><br>上传卡片下方有字段映射下拉，手动改成正确列即可，改完立即重新读取。</p>
               <p><b>Q：点「用户手册」没弹出新页面？</b><br>浏览器拦截了新标签页，地址栏右侧会有"已阻止弹窗"提示，选"始终允许"后再点一次。</p>
               <p><b>Q：拖 Excel 档案时弹出「确定要作为资料重命名吗」？</b><br>因为 Excel 一般不是档案资料，工具跟你确认一下。如果确实是，点确定即可。</p>
-              <p><b>Q：换电脑后设置全没了？</b><br>侧栏底部「导出配置」把设置存成 JSON 文件，到新电脑点「导入配置」恢复全部设置。</p>
+              <p><b>Q：换电脑后设置全没了？</b><br>侧栏底部「导出配置」把设置存成 JSON 文件，到新电脑点「导入配置」恢复全部设置（覆盖四个模块的所有参数）。</p>
+              <p><b>Q：考勤结果卡的数字统计区悬浮不出清单？</b><br>把鼠标停到卡片<b>中部数字那一行</b>稍等一下就会弹出该组文件清单；「数据汇总」卡固定只有一个文件，没有清单。</p>
+              <p><b>Q：考勤处理传了 RM，为什么没生成机师岗文件？</b><br>机师岗文件只在 RM 数据识别成功且匹配到花名册后才会生成；如果没生成，点「下载问题清单」看具体原因（常见：找不到必需列、蝶城匹配不上）。</p>
+              <p><b>Q：薪资报送里薪酬项目标红了选不了？</b><br>映射下拉支持输入关键字搜索（共 662 项），选中后红标消失即可生成；全部标红项处理完之前「开始生成」会被拦下，这是防止导入系统时项目对不上号。</p>
+              <p><b>Q：生成的文件太多一次下不完？</b><br>结果卡右上角的「下载」按组分批下载；考勤处理页另有「打包下载」按钮，把所有文件合成一个 zip。</p>
             </section>
           </div>
         </div>

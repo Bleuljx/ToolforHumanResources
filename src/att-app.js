@@ -1,6 +1,6 @@
 /* ============================================================
  * att-app.js — 考勤处理模块界面
- * 三个上传区（外包SHR / RM / 花名册）+ 花名册映射 + 机师岗勾选 + 生成与下载
+ * 三个上传区（外包SHR / RM / 花名册）+ 花名册映射 + 外包考勤岗位剔除 + 生成与下载
  * ============================================================ */
 (function () {
   'use strict';
@@ -18,7 +18,8 @@
     roster: null,   // {id, name, buffer, wb, rows, headers}
     cfg: null,
     results: null,  // {files:[{name,blob,city}], cities, summary, problems}
-    machineCandidates: [],  // [{name, checked}]
+    postOptions: [],  // 外包考勤里出现的岗位名（下拉多选候选）
+    seenPosts: {},    // 已自动带入过「机师」岗位，避免用户取消后被重新加回
     rosterGuessed: false
   };
 
@@ -156,23 +157,25 @@
     catch (e) { state.roster.rows = []; }
   }
 
-  /* ---------------- 机师岗候选 ---------------- */
+  /* ---------------- 剔除岗位候选 ---------------- */
 
   function refreshMachine() {
     var posts = {}, order = [];
     state.shr.forEach(function (f) {
       (f.parsed.rows || []).forEach(function (r) {
         var p = r.post || '';
-        if (!p) return;
-        if (!posts[p]) { posts[p] = true; order.push(p); }
+        if (!p || posts[p]) return;
+        posts[p] = true; order.push(p);
       });
     });
-    var known = {};
-    state.machineCandidates.forEach(function (m) { known[m.name] = m.checked; });
-    state.machineCandidates = order.map(function (p) {
-      return { name: p, checked: p in known ? known[p] : p.indexOf('机师') >= 0 };
+    state.postOptions = order.sort(function (a, b) { return a.localeCompare(b, 'zh'); });
+    var shifts = state.cfg.machineShifts || (state.cfg.machineShifts = []);
+    // 首次出现的岗位名含「机师」时自动带入（用户手动取消后不再自动加回）
+    state.postOptions.forEach(function (p) {
+      if (state.seenPosts[p]) return;
+      state.seenPosts[p] = 1;
+      if (p.indexOf('机师') >= 0 && shifts.indexOf(p) < 0) shifts.push(p);
     });
-    state.cfg.machineShifts = state.machineCandidates.filter(function (m) { return m.checked; }).map(function (m) { return m.name; });
     saveCfg();
   }
 
@@ -236,22 +239,18 @@
   function renderRosterPanel() {
     var box = $('#rosterPanel');
     if (!box) return;
-    if (!state.roster) {
-      box.innerHTML = '';
-      return;
-    }
+    if (!state.roster) { box.innerHTML = ''; return; }
     var hs = state.roster.headers;
-    var h = '<table class="map-table"><thead><tr><th style="width:150px">花名册字段</th><th>对应列名</th><th>说明</th></tr></thead><tbody>';
+    // 紧凑 2 列网格：标签在上、下拉在下，不再用表格和「说明」列
+    var h = '<div class="sec-h">花名册字段映射</div><div class="rmap-grid">';
     A.ROSTER_FIELDS.forEach(function (f) {
       var cur = state.cfg.rosterMap[f.key] || '';
-      h += '<tr><td><b>' + esc(f.label) + '</b></td>' +
-        '<td><select data-rmap="' + f.key + '">' +
-        '<option value="">（自动识别）</option>' +
+      h += '<label class="rmap-item"><span>' + esc(f.label) + '</span>' +
+        '<select data-rmap="' + f.key + '"><option value="">（自动识别）</option>' +
         hs.map(function (x) { return '<option value="' + esc(x) + '"' + (x === cur ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') +
-        '</select></td>' +
-        '<td class="col-tip">' + (f.key === 'code' ? '工号优先匹配，姓名兜底' : f.key === 'city' ? '按此字段归属蝶城（无出勤名单）' : f.key === 'hire' || f.key === 'leave' ? '用于判定考勤期内是否在职' : '') + '</td></tr>';
+        '</select></label>';
     });
-    h += '</tbody></table><div class="hint">已识别 ' + (state.roster.rows.length) + ' 名员工。</div>';
+    h += '</div><div class="rmap-foot">已识别 <b>' + state.roster.rows.length + '</b> 名员工</div>';
     box.innerHTML = h;
     $$('[data-rmap]', box).forEach(function (sel) {
       sel.addEventListener('change', function () {
@@ -263,26 +262,83 @@
     });
   }
 
+  /* 当前生效的剔除项：下拉岗位 + 「其他」输入框的词，归一化后去重 */
+  function exItems() {
+    var out = [], seen = {};
+    (state.cfg.machineShifts || []).forEach(function (p) {
+      var k = A.norm(p); if (!k || seen[k]) return;
+      seen[k] = 1; out.push({ v: p, t: 'post' });
+    });
+    A.splitTokens(state.cfg.machineExtraText).forEach(function (t) {
+      var k = A.norm(t); if (!k || seen[k]) return;
+      seen[k] = 1; out.push({ v: t, t: 'extra' });
+    });
+    return out;
+  }
+
+  function renderChips() {
+    var box = $('#machineChips');
+    if (!box) return;
+    var items = exItems();
+    var head = $('#machineChipsHead');
+    if (head) head.textContent = '当前剔除 ' + items.length + ' 项';
+    box.innerHTML = items.length ? items.map(function (x) {
+      return '<span class="ex-chip"><span title="' + esc(x.v) + '">' + esc(x.v) + '</span>' +
+        '<button type="button" data-chip-t="' + x.t + '" data-chip-v="' + esc(x.v) + '" title="移除">×</button></span>';
+    }).join('') : '<span class="ex-empty">未设置，外包考勤全部保留</span>';
+    $$('[data-chip-t]', box).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = b.dataset.chipV;
+        if (b.dataset.chipT === 'post') {
+          state.cfg.machineShifts = (state.cfg.machineShifts || []).filter(function (p) { return p !== v; });
+        } else {
+          var left = A.splitTokens(state.cfg.machineExtraText).filter(function (t) { return A.norm(t) !== A.norm(v); });
+          state.cfg.machineExtraText = left.join(', ');
+        }
+        saveCfg();
+        renderMachinePanel();
+      });
+    });
+  }
+
   function renderMachinePanel() {
     var box = $('#machinePanel');
     if (!box) return;
-    if (!state.shr.length) {
-      box.innerHTML = '';
-      return;
-    }
-    var h = '<div class="ig-head"><b>机师岗名单</b><span>勾选的岗位从外包考勤剔除（RM 考勤不受影响）：</span></div><div class="ig-list">';
-    state.machineCandidates.forEach(function (m, i) {
-      h += '<label class="ig-item"><input type="checkbox" data-machine="' + i + '"' + (m.checked ? ' checked' : '') + '><span title="' + esc(m.name) + '">' + esc(m.name) + '</span></label>';
-    });
-    h += '</div>';
+    var selSet = {};
+    (state.cfg.machineShifts || []).forEach(function (p) { selSet[p] = 1; });
+    var h = '<div class="sec-h">外包考勤岗位剔除</div>' +
+      '<div class="ex-card">' +
+        '<div class="ex-sub">选中的岗位、或「其他」里填写的岗位名 / 员工姓名，会从外包考勤中剔除；RM 考勤不受影响。</div>' +
+        '<label class="ex-fld"><span>① 剔除岗位 <em>（Ctrl / Shift 可多选）</em></span>' +
+          '<select id="machineSel" class="ex-sel" multiple size="5">' +
+          (state.postOptions.length
+            ? state.postOptions.map(function (p) {
+                return '<option value="' + esc(p) + '"' + (selSet[p] ? ' selected' : '') + '>' + esc(p) + '</option>';
+              }).join('')
+            : '<option value="" disabled>上传外包考勤后自动列出岗位</option>') +
+          '</select></label>' +
+        '<label class="ex-fld"><span>② 其他 <em>（岗位名或姓名，逗号 / 空格分隔）</em></span>' +
+          '<input id="machineExtra" class="ex-input" type="text" placeholder="如：机师岗, 维保机师 或 张三 李四" value="' +
+          esc(state.cfg.machineExtraText || '') + '"></label>' +
+        '<div class="ex-chips-head" id="machineChipsHead"></div>' +
+        '<div class="ex-chips" id="machineChips"></div>' +
+      '</div>';
     box.innerHTML = h;
-    $$('[data-machine]', box).forEach(function (cb) {
-      cb.addEventListener('change', function () {
-        state.machineCandidates[Number(cb.dataset.machine)].checked = cb.checked;
-        state.cfg.machineShifts = state.machineCandidates.filter(function (m) { return m.checked; }).map(function (m) { return m.name; });
-        saveCfg();
-      });
+    var sel = $('#machineSel', box);
+    if (sel) sel.addEventListener('change', function () {
+      state.cfg.machineShifts = Array.prototype.slice.call(sel.options)
+        .filter(function (o) { return o.selected && o.value; })
+        .map(function (o) { return o.value; });
+      saveCfg();
+      renderChips();
     });
+    var inp = $('#machineExtra', box);
+    if (inp) inp.addEventListener('input', function () {
+      state.cfg.machineExtraText = inp.value;
+      saveCfg();
+      renderChips();
+    });
+    renderChips();
   }
 
   function renderPeriod() {
