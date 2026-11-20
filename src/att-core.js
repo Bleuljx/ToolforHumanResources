@@ -1000,29 +1000,57 @@
     return c === 13 ? 3 : 2;
   }
 
-  /* 计薪工时 0.1~0.9 高亮：淡黄FFF2CC底+加粗+两位小数（样式19）
-     第 0~3 列是 项目/入职/离职/姓名，从第 4 列起才是日期工时格 */
-  function matrixStyleFn(rows, highlight) {
-    if (!highlight) return null;
+  /* 计薪工时高亮规则（第 0~3 列是 项目/入职/离职/姓名，从第 4 列起是日期工时格）：
+     - 0.1~0.9 → 淡黄FFF2CC底+加粗+两位小数（样式19）
+     - 0 → 留空 + 亮黄FFFFCC底（样式21）；留空由 matrixSpec 的 blankZero 把值转成''
+     - summaryCol>=0 时该列为"出勤天数汇总" → 加粗两位小数（样式22） */
+  function matrixStyleFn(rows, highlight, blankZero, summaryCol) {
+    if (!highlight && !blankZero && summaryCol == null) return null;
     return function (r, cc) {
       if (cc < 4) return 2;
+      if (summaryCol != null && cc === summaryCol) return 22;
       var v = rows[r] && rows[r][cc];
-      if (typeof v === 'number' && v >= 0.1 && v <= 0.9) return 19;
+      if (blankZero && v === 0) return 21;
+      if (highlight && typeof v === 'number' && v >= 0.1 && v <= 0.9) return 19;
       return 2;
     };
   }
-  /* opt: {highlight:bool, tall:bool}
-     tall=true → 数据行高 0.83cm(≈23.5pt)、表头行高 1.06cm(≈30pt)、表头顶端居中(样式20)、开筛选 */
+  /* opt: {highlight, tall, blankZero, summary}
+     highlight=0.1-0.9淡黄加粗 | blankZero=0值留空填亮黄 | summary=末尾加"出勤天数汇总"列(各日期求和保留2位)
+     tall=数据行高0.83cm/表头1.06cm/表头顶端居中/开筛选 */
   function matrixSpec(name, days, rows, opt) {
     opt = opt || {};
     var header = MATRIX_HEAD4.concat(days);
+    var outRows = rows;
+    var summaryCol = null;
+    if (opt.summary) {
+      summaryCol = 4 + days.length;
+      header = header.concat(['出勤天数汇总']);
+      outRows = rows.map(function (row) {
+        var sum = 0;
+        for (var i = 4; i < 4 + days.length; i++) {
+          var v = row[i];
+          if (typeof v === 'number') sum += v;
+        }
+        return row.concat([round2(sum)]);
+      });
+    }
+    if (opt.blankZero) {
+      outRows = outRows.map(function (row) {
+        return row.map(function (v, i) {
+          // 汇总列不参与留空；日期工时格里的 0 转成空串
+          return (i >= 4 && (summaryCol == null || i < summaryCol) && v === 0) ? '' : v;
+        });
+      });
+    }
     var spec = {
-      name: name, header: header, rows: rows,
+      name: name, header: header, rows: outRows,
       headerStyle: opt.tall ? 20 : 7,
       dataStyle: 2, freeze: { x: 4, y: 1 },
       cols: [18, 12, 12, 10].concat(days.map(function () { return 5; }))
+        .concat(opt.summary ? [14] : [])
     };
-    if (opt.highlight) spec.styleFn = matrixStyleFn(rows, true);
+    spec.styleFn = matrixStyleFn(rows, opt.highlight, opt.blankZero, summaryCol);
     if (opt.tall) { spec.rowHeight = 23.5; spec.headerHeight = 30; spec.autoFilter = true; }
     return spec;
   }
@@ -1075,7 +1103,7 @@
         cols: [10, 12, 10, 11, 16, 13, 8, 8, 8, 8, 9, 13, 8, 8, 8, 7, 9, 9, 8, 8, 8, 9, 9, 9]
       });
       specs.push(statSpec(c, c.statRows.slice(), c.statRows.length));
-      specs.push(matrixSpec('计薪工时', c.matrixDays, c.payMatrix, { highlight: true, tall: true }));
+      specs.push(matrixSpec('计薪工时', c.matrixDays, c.payMatrix, { highlight: true, blankZero: true, summary: true, tall: true }));
       specs.push(matrixSpec('理论工时', c.matrixDays, c.theoryMatrix));
       specs.push(matrixSpec('打卡工时', c.matrixDays, [], { tall: true }));
       specs.push(matrixSpec('工时比对', c.matrixDays, []));
@@ -1098,7 +1126,7 @@
       }
       rmSpecs.push(statSpec(c, c.statRowsRm.slice(), c.statRowsRm.length));
       /* 机师岗文件：补四张工时矩阵（仅 RM 人员），取数规则与外包一致 */
-      rmSpecs.push(matrixSpec('计薪工时', c.matrixDays, c.rmPayMatrix, { highlight: true, tall: true }));
+      rmSpecs.push(matrixSpec('计薪工时', c.matrixDays, c.rmPayMatrix, { highlight: true, blankZero: true, summary: true, tall: true }));
       rmSpecs.push(matrixSpec('理论工时', c.matrixDays, c.rmTheoryMatrix));
       rmSpecs.push(matrixSpec('打卡工时', c.matrixDays, c.rmPunchMatrix, { tall: true }));
       rmSpecs.push(matrixSpec('工时比对', c.matrixDays, []));

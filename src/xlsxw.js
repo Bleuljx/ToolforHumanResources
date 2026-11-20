@@ -33,6 +33,7 @@
    * 10 黄表头单元格(FFFF00 宋体14加粗) | 11 数据+一位小数
    * 12 珊瑚红+两位小数 | 13 珊瑚红+一位小数 | 14 合计行+两位小数
    * 19 淡黄FFF2CC底+加粗+两位小数（计薪工时0.1-0.9高亮） | 20 浅蓝底宋体14加粗黑字+水平居中垂直靠上（矩阵表头）
+   * 21 亮黄FFFFCC底+两位小数（计薪工时0值留空填亮黄） | 22 加粗+两位小数无底色（出勤天数汇总列）
    */
   function stylesXml() {
     return HEAD +
@@ -63,7 +64,7 @@
       '<top style="thin"><color indexed="64"/></top><bottom style="thin"><color indexed="64"/></bottom><diagonal/></border>' +
       '</borders>' +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="21">' +
+      '<cellXfs count="23">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
       '<alignment horizontal="center" vertical="top" wrapText="1"/></xf>' +
@@ -107,6 +108,12 @@
       // 20: 浅蓝底99CCFF 宋体14加粗黑字 水平居中垂直靠上（矩阵表头）
       '<xf numFmtId="0" fontId="3" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
       '<alignment horizontal="center" vertical="top" wrapText="1"/></xf>' +
+      // 21: 亮黄FFFFCC底+两位小数（计薪工时0值留空填亮黄）
+      '<xf numFmtId="164" fontId="0" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyFill="1" applyBorder="1" applyAlignment="1">' +
+      '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+      // 22: 加粗+两位小数无底色（出勤天数汇总列）
+      '<xf numFmtId="164" fontId="2" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1">' +
+      '<alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
       '</cellXfs>' +
       '<cellStyles count="1"><cellStyle name="常规" xfId="0" builtinId="0"/></cellStyles>' +
       '<dxfs count="0"/>' +

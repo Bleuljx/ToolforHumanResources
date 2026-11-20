@@ -939,21 +939,52 @@
       if (!tpl) { toast('手册模板缺失，请使用完整版本的工具', 'warn'); return; }
       var css = [
         '*{box-sizing:border-box}',
-        'body{margin:0;background:#eef2ef;font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;color:#26313c;padding:28px 16px}',
-        '.help-wrap{max-width:880px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:30px 36px 36px}',
-        '.help-h{display:flex;align-items:center;gap:10px;border-bottom:2px solid #217346;padding-bottom:12px;margin-bottom:8px}',
+        'html{scroll-behavior:smooth}',
+        'body{margin:0;background:#eef2ef;font-family:"Microsoft YaHei","PingFang SC","Segoe UI",sans-serif;color:#26313c;padding:24px 16px}',
+        '.help-wrap{max-width:1080px;margin:0 auto;background:#fff;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.08);padding:26px 30px 36px;display:grid;grid-template-columns:172px minmax(0,1fr);gap:26px;align-items:start}',
+        '.help-h{grid-column:1/-1;display:flex;align-items:center;gap:10px;border-bottom:2px solid #217346;padding-bottom:12px;margin-bottom:2px}',
         '.help-h .ico{font-size:22px}',
         '.help-h h1{margin:0;font-size:20px;color:#217346}',
-        '.help-h .sub{font-size:12.5px;color:#8ba094;margin-left:auto}',
-        '.help-body h4{margin:18px 0 8px;font-size:15px;color:#217346;border-left:3px solid #217346;padding-left:8px}',
+        '.help-toc{position:sticky;top:24px;background:#f7faf8;border:1px solid #dfeae3;border-radius:10px;padding:12px 10px;display:flex;flex-direction:column;gap:2px}',
+        '.help-toc .toc-title{font-size:12px;font-weight:700;color:#8ba094;padding:2px 8px 8px;letter-spacing:1px}',
+        '.help-toc a{display:block;font-size:12.5px;color:#5a6b60;text-decoration:none;padding:7px 9px;border-radius:6px;line-height:1.4;transition:background .15s,color .15s}',
+        '.help-toc a:hover{background:#eaf3ed;color:#217346}',
+        '.help-toc a.active{background:#217346;color:#fff;font-weight:600}',
+        '.help-body{min-width:0}',
+        '.help-body section{scroll-margin-top:24px;padding-bottom:6px}',
+        '.help-body h4{margin:16px 0 10px;font-size:16px;color:#217346;border-left:3px solid #217346;padding-left:9px}',
         '.help-body p{margin:6px 0;font-size:13.5px;color:#3c4854;line-height:1.8}',
-        '.help-body ol{margin:6px 0 10px;padding-left:22px;font-size:13.5px;color:#3c4854;line-height:1.9}',
-        '.help-body .help-tip{background:#fff6e5;border:1px solid #f0dfb8;border-radius:8px;padding:8px 12px;font-size:13px;color:#7a5b16;margin:8px 0;line-height:1.8}',
-        '.help-body b{color:#26313c}'
+        '.help-body ol{margin:6px 0 10px;padding-left:22px;font-size:13.5px;color:#3c4854;line-height:1.85}',
+        '.help-body>b,.help-body b{color:#26313c}',
+        '.part{margin:10px 0;padding:9px 13px;background:#fbfdfb;border:1px solid #e7efe9;border-radius:9px;display:grid;grid-template-columns:88px minmax(0,1fr);gap:10px;align-items:start}',
+        '.part .pk{display:inline-block;background:#217346;color:#fff;font-size:12px;font-weight:700;border-radius:5px;padding:3px 0;text-align:center;white-space:nowrap;margin-top:1px}',
+        '.part .pv{font-size:13.5px;color:#3c4854;line-height:1.8;min-width:0}',
+        '.part .pv p{margin:4px 0}.part .pv ol{margin:4px 0 6px}',
+        '.part code,.help-body code{background:#eef3ef;border-radius:4px;padding:1px 5px;font-size:12px;color:#1a5c38;word-break:break-all}',
+        '.fig{margin:12px 0;border:1px solid #e3ebe5;border-radius:10px;padding:10px;background:#fbfdfb}',
+        '.fig-svg{width:100%;height:auto;display:block;border-radius:6px}',
+        '.fig-cap{font-size:12px;color:#7a8b80;margin-top:7px;line-height:1.7}',
+        '.help-naming{background:#edf5f0;border:1px solid #b9d6c4;border-radius:10px;padding:12px 16px;margin:12px 0}',
+        '.help-naming .hn-title{font-size:14px;font-weight:700;color:#217346;margin-bottom:6px}',
+        '.help-naming p{margin:5px 0;font-size:13px;color:#3c4854;line-height:1.8}',
+        '.help-naming ol{margin:6px 0;padding-left:22px;font-size:13px;color:#3c4854;line-height:1.9}',
+        '.help-naming b{color:#1a5c38}',
+        '.help-naming code{background:#dcece2;border-radius:4px;padding:1px 5px;font-size:12px;color:#1a5c38}',
+        '@media(max-width:780px){.help-wrap{grid-template-columns:1fr}.help-toc{position:static;flex-direction:row;flex-wrap:wrap}.help-toc .toc-title{width:100%}.part{grid-template-columns:1fr}}'
+      ].join('\n');
+      var tocJs = [
+        '(function(){',
+        'var links=[].slice.call(document.querySelectorAll(".help-toc a"));',
+        'var secs=[].slice.call(document.querySelectorAll(".help-body section[id]"));',
+        'function mark(id){links.forEach(function(a){a.classList.toggle("active",a.getAttribute("href")==="#"+id);});}',
+        'links.forEach(function(a){a.addEventListener("click",function(e){e.preventDefault();var t=document.querySelector(a.getAttribute("href"));if(t){t.scrollIntoView({behavior:"smooth",block:"start"});history.replaceState(null,"",a.getAttribute("href"));mark(t.id);}});});',
+        'if(window.IntersectionObserver){var io=new IntersectionObserver(function(es){es.forEach(function(en){if(en.isIntersecting)mark(en.target.id);});},{rootMargin:"-12% 0px -75% 0px",threshold:0});secs.forEach(function(s){io.observe(s);});}',
+        'mark(secs.length?secs[0].id:"");',
+        '})();'
       ].join('\n');
       var html = '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
         '<title>用户手册 · 人力工具集成平台</title><style>' + css + '</style></head><body>' +
-        tpl.innerHTML + '</body></html>';
+        tpl.innerHTML + '<script>' + tocJs + '<\/script></body></html>';
       var url = URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
       var w = window.open(url, '_blank');
       if (!w) toast('浏览器拦截了新标签页，请允许本页弹窗后重试', 'warn');
