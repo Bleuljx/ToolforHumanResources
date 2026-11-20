@@ -473,11 +473,15 @@
     });
     var namePool = inferredCities.slice();
     (rosterIdx.rows || []).forEach(function (r) { if (r.city) namePool.push(r.city); });
+    var canonCache = {};
     function canonCity(name) {
+      var key = String(name == null ? '' : name);
+      if (key in canonCache) return canonCache[key];
       var best = name;
       namePool.forEach(function (n) {
         if (n && cityMatch(name, n) && String(n).length > String(best).length) best = n;
       });
+      canonCache[key] = best;
       return best;
     }
 
@@ -567,24 +571,31 @@
     if (dc && attIdx.byCode['#' + dc]) return true;
     if (n && attIdx.byName[n]) return true;
     if (n) {
-      for (var k = 0; k < attIdx.nameList.length; k++) {
-        if (dice(n, attIdx.nameList[k].n) >= 0.85 && attIdx.nameList[k].name === toStr(r.name)) return true;
-      }
+      // 原逻辑：遍历全部考勤行，dice(n, 考勤归一化名)>=0.85 且 显示名完全相同 才算命中。
+      // 既然显示名必须完全相同，其归一化名也相同，dice 必为 1（>=0.85），
+      // 因此等价于「考勤里存在显示名完全相同的记录」。改为按显示名建索引 O(1) 命中，结果一致。
+      var disp = toStr(r.name);
+      if (attIdx.byDisplay && attIdx.byDisplay[disp]) return true;
     }
     return false;
   }
 
   function buildAttIdx(rows) {
-    var byCode = {}, byName = {}, nameList = [];
+    var byCode = {}, byName = {}, byDisplay = {}, nameList = [], seenName = {};
     rows.forEach(function (r) {
-      var c = norm(r.code), n = norm(r.name);
+      var c = norm(r.code), n = norm(r.name), disp = toStr(r.name);
       if (c && !byCode[c]) byCode[c] = 1;
       var dc = digitsOnly(c);
       if (dc && !byCode['#' + dc]) byCode['#' + dc] = 1;
       if (n && !byName[n]) byName[n] = 1;
-      nameList.push({ n: n, name: r.name });
+      if (disp && !byDisplay[disp]) byDisplay[disp] = 1;
+      // nameList 仅供外部读取/兼容；inAttendance 已改用 byDisplay，此处仍去重降低内存
+      if (n) {
+        var key = n + '\u0001' + disp;
+        if (!seenName[key]) { seenName[key] = 1; nameList.push({ n: n, name: r.name }); }
+      }
     });
-    return { byCode: byCode, byName: byName, nameList: nameList };
+    return { byCode: byCode, byName: byName, byDisplay: byDisplay, nameList: nameList };
   }
 
   function processCity(city, shrRowsIn, rmRowsIn, rosterIdx, cfg, addProblem, globalAttIdx) {
@@ -792,7 +803,9 @@
           var m = rosterOf(r);
           statMap[key] = {
             name: r.name, code: r.code,
-            third: r.type === 'shr' ? r.post : (m ? m.row.project : r.post),
+            // 编码后加项目、项目后为岗位：项目取花名册优先、源表兜底；岗位取考勤行岗位（两类都有岗位列）
+            project: (m && toStr(m.row.project)) ? toStr(m.row.project) : toStr(r.project || ''),
+            post: toStr(r.post || ''),
             l5: 0, l15: 0, l120: 0, e5: 0, e15: 0, e120: 0, ded: 0
           };
           statOrder.push(key);
@@ -811,7 +824,7 @@
         var s = statMap[k];
         var total = s.l5 + s.l15 + s.l120 + s.e5 + s.e15 + s.e120;
         if (total <= 0) return;
-        out.push([s.name, s.code, s.third, s.l5, s.l15, s.l120, s.e5, s.e15, s.e120,
+        out.push([s.name, s.code, s.project, s.post, s.l5, s.l15, s.l120, s.e5, s.e15, s.e120,
           s.l5 + s.l15 + s.l120, s.e5 + s.e15 + s.e120, total, round2(s.ded)]);
       });
       return out;
@@ -946,7 +959,7 @@
 
   /* ---------------- 汇总总表 ---------------- */
 
-  var SUMMARY_STAT_HEAD = ['蝶城', '员工姓名', '员工编号', '岗位/项目', '迟到<=5分钟次数', '迟到<=15分钟次数', '迟到15-120分钟',
+  var SUMMARY_STAT_HEAD = ['蝶城', '员工姓名', '员工编号', '项目', '岗位', '迟到<=5分钟次数', '迟到<=15分钟次数', '迟到15-120分钟',
     '早退<=5分钟次数', '早退<=15分钟次数', '早退15-120分钟', '合计迟到次数', '合计早退次数', '迟到早退合计', '扣款合计'];
   var SUMMARY_DETAIL_HEAD = ['蝶城'].concat(UNI_HEAD);
 
@@ -958,6 +971,24 @@
       c.noAttendance.forEach(function (r) { noAtt.push(r); });
     });
     return { statRows: statRows, detailRows: detailRows, noAttendance: noAtt };
+  }
+
+  /* 统计行的 10 个数值列（迟到<=5/<=15/15-120、早退同、合计迟到/早退/总次数、扣款合计）。
+     蝶城统计表是 14 列，汇总总表前面多一列「蝶城」是 15 列——统一从这里取数，
+     否则会按旧下标把「迟到早退合计（次数）」当成「扣款合计（元）」。 */
+  function statNums(r) {
+    var d = r.length >= 15 ? r.slice(1) : r, out = [];
+    for (var i = 4; i <= 13; i++) {
+      var v = d[i];
+      out.push(typeof v === 'number' ? v : (Number(v) || 0));
+    }
+    return out;
+  }
+  /* 扣款合计：取统计行最后一列金额，兼容带/不带蝶城列两种行 */
+  function statDed(rows) {
+    var s = 0;
+    (rows || []).forEach(function (r) { s += statNums(r)[9]; });
+    return round2(s);
   }
 
   /* ---------------- 导出工作簿 spec ---------------- */
@@ -996,8 +1027,8 @@
   }
   function statStyle(r, c, v, isTotal) {
     if (isTotal) return c === 13 ? 14 : 9;
-    if (c >= 3 && c <= 12 && typeof v === 'number' && v > 0) return 8;
-    return c === 13 ? 3 : 2;
+    if (c >= 4 && c <= 13 && typeof v === 'number' && v > 0) return 8;
+    return c === 13 ? 3 : 2;   // 扣款合计列（第 14 列，下标 13）保留两位小数
   }
 
   /* 计薪工时高亮规则（第 0~3 列是 项目/入职/离职/姓名，从第 4 列起是日期工时格）：
@@ -1062,20 +1093,21 @@
     if (statData.length) {
       var t = { l5: 0, l15: 0, l120: 0, e5: 0, e15: 0, e120: 0, lt: 0, et: 0, tt: 0, ded: 0 };
       statData.forEach(function (r) {
-        t.l5 += r[3]; t.l15 += r[4]; t.l120 += r[5]; t.e5 += r[6]; t.e15 += r[7]; t.e120 += r[8];
-        t.lt += r[9]; t.et += r[10]; t.tt += r[11]; t.ded += r[12];
+        var d = statNums(r);
+        t.l5 += d[0]; t.l15 += d[1]; t.l120 += d[2]; t.e5 += d[3]; t.e15 += d[4]; t.e120 += d[5];
+        t.lt += d[6]; t.et += d[7]; t.tt += d[8]; t.ded += d[9];
       });
-      statData.push(['', '', '合计', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
+      statData.push(['', '', '', '合计', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
     }
     return {
       name: '迟到早退统计', header: statHead, rows: statData, headerStyle: 7,
-      headerStyleFn: function (cc) { return (cc === 4 || cc === 7) ? 10 : 7; },
+      headerStyleFn: function (cc) { return (cc === 5 || cc === 8) ? 10 : 7; },
       styleFn: function (r, cc) {
-        if (r === statData.length - 1 && statData.length > rawCount) return cc === 12 ? 14 : 9;   // 合计行
+        if (r === statData.length - 1 && statData.length > rawCount) return cc === 13 ? 14 : 9;   // 合计行
         return statStyle(r, cc, statData[r][cc], false);
       },
       freeze: { x: 0, y: 1 }, autoFilter: true, rowHeight: 24.75,
-      cols: [10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
+      cols: [10, 12, 14, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
     };
   }
 
@@ -1135,26 +1167,28 @@
     return files;
   }
 
-  function summarySpecs(s) {
+  function summarySpecs(s, cities) {
     var specs = [];
     var statData = s.statRows.slice();
     if (statData.length) {
       var t = { l5: 0, l15: 0, l120: 0, e5: 0, e15: 0, e120: 0, lt: 0, et: 0, tt: 0, ded: 0 };
       statData.forEach(function (r) {
-        t.l5 += r[4]; t.l15 += r[5]; t.l120 += r[6]; t.e5 += r[7]; t.e15 += r[8]; t.e120 += r[9];
-        t.lt += r[10]; t.et += r[11]; t.tt += r[12]; t.ded += r[13];
+        var d = statNums(r);   // 汇总行前面多一列蝶城，必须走助手换算
+        t.l5 += d[0]; t.l15 += d[1]; t.l120 += d[2]; t.e5 += d[3]; t.e15 += d[4]; t.e120 += d[5];
+        t.lt += d[6]; t.et += d[7]; t.tt += d[8]; t.ded += d[9];
       });
-      statData.push(['', '', '合计', '', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
+      statData.push(['', '', '', '合计', '', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
     }
     specs.push({
       name: '迟到早退统计汇总', header: SUMMARY_STAT_HEAD, rows: statData, headerStyle: 7,
       styleFn: function (r, cc) {
-        if (r === statData.length - 1 && statData.length > s.statRows.length) return cc === 13 ? 14 : 9;   // 合计行
-        if (cc >= 4 && cc <= 13 && typeof statData[r][cc] === 'number' && statData[r][cc] > 0) return 8;
-        return cc === 13 ? 3 : 2;
+        // 汇总表 15 列：蝶城(0) 姓名(1) 编号(2) 项目(3) 岗位(4) 数值(5..14)，扣款合计在 14
+        if (r === statData.length - 1 && statData.length > s.statRows.length) return cc === 14 ? 14 : 9;   // 合计行
+        if (cc >= 5 && cc <= 14 && typeof statData[r][cc] === 'number' && statData[r][cc] > 0) return 8;
+        return cc === 14 ? 3 : 2;
       },
       freeze: { x: 0, y: 1 }, autoFilter: true, rowHeight: 24.75,
-      cols: [12, 10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
+      cols: [12, 10, 12, 14, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
     });
     specs.push({
       name: '迟到早退明细汇总', header: SUMMARY_DETAIL_HEAD, rows: s.detailRows, headerStyle: 7,
@@ -1167,6 +1201,33 @@
       rows: s.noAttendance, headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
       cols: [12, 10, 12, 16, 11, 11]
     });
+
+    /* 各蝶城差异数据汇总：差异总数 / 迟到总数 / 早退总数 / 迟到早退扣款总数 */
+    if (cities && cities.length) {
+      var cityRows = [], T = { diff: 0, late: 0, early: 0, ded: 0 };
+      cities.forEach(function (c) {
+        var late = 0, early = 0, ded = 0;
+        (c.statRows || []).forEach(function (r) {
+          var d = statNums(r);
+          late += d[6]; early += d[7]; ded += d[9];
+        });
+        var diff = (c.diffRows || []).length;
+        cityRows.push([c.city, diff, late, early, round2(ded)]);
+        T.diff += diff; T.late += late; T.early += early; T.ded += ded;
+      });
+      cityRows.push(['合计', T.diff, T.late, T.early, round2(T.ded)]);
+      specs.push({
+        name: '各蝶城差异汇总',
+        header: ['蝶城', '差异总数', '迟到总数', '早退总数', '迟到早退扣款总数'],
+        rows: cityRows, headerStyle: 7, dataStyle: 2,
+        styleFn: function (r, cc) {
+          if (r === cityRows.length - 1) return cc === 4 ? 14 : 9;   // 合计行
+          return cc >= 1 && cc <= 4 && typeof cityRows[r][cc] === 'number' && cityRows[r][cc] > 0 ? 3 : 2;
+        },
+        freeze: { x: 0, y: 1 }, autoFilter: true, rowHeight: 24.75,
+        cols: [18, 12, 12, 12, 20]
+      });
+    }
     return specs;
   }
 
@@ -1186,6 +1247,7 @@
     },
     cityFileSpecs: cityFileSpecs,
     summarySpecs: summarySpecs,
+    statDed: statDed,
     matchRoster: matchRoster
   };
 });

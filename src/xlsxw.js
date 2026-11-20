@@ -141,38 +141,37 @@
     var totalRows = rows.length + (header ? 1 : 0);
     var ref = 'A1:' + colName(nCols) + Math.max(1, totalRows);
 
-    var x = HEAD + '<worksheet xmlns="' + NS + '" xmlns:r="' + RNS + '">' +
-      '<dimension ref="' + ref + '"/>' +
-      '<sheetViews><sheetView workbookViewId="0">' +
-      paneXml(s) +
-      '</sheetView></sheetViews>' +
-      '<sheetFormatPr defaultRowHeight="16.5"/>';
+    // 用数组 push + join 代替字符串 += ：几万行×几十列时避免大量中间字符串，写出更快
+    var parts = [HEAD, '<worksheet xmlns="' + NS + '" xmlns:r="' + RNS + '">',
+      '<dimension ref="' + ref + '"/>',
+      '<sheetViews><sheetView workbookViewId="0">', paneXml(s),
+      '</sheetView></sheetViews>', '<sheetFormatPr defaultRowHeight="16.5"/>'];
 
     if (s.cols && s.cols.length) {
-      x += '<cols>';
+      parts.push('<cols>');
       s.cols.forEach(function (w, i) {
         if (w == null) return;
-        x += '<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>';
+        parts.push('<col min="' + (i + 1) + '" max="' + (i + 1) + '" width="' + w + '" customWidth="1"/>');
       });
-      x += '</cols>';
+      parts.push('</cols>');
     }
 
-    x += '<sheetData>';
+    parts.push('<sheetData>');
     var rowNo = 1;
     if (header) {
-      x += '<row r="1"' + (s.headerHeight ? ' ht="' + s.headerHeight + '" customHeight="1"' : '') + '>';
+      parts.push('<row r="1"' + (s.headerHeight ? ' ht="' + s.headerHeight + '" customHeight="1"' : '') + '>');
       for (var c = 0; c < header.length; c++) {
         if (header[c] == null || header[c] === '') continue;
         var hStyle = s.headerStyle == null ? 1 : s.headerStyle;
         if (s.headerStyleFn) { var hv = s.headerStyleFn(c); if (hv != null) hStyle = hv; }
-        x += cellXml(colName(c + 1) + '1', header[c], hStyle);
+        parts.push(cellXml(colName(c + 1) + '1', header[c], hStyle));
       }
-      x += '</row>';
+      parts.push('</row>');
       rowNo = 2;
     }
     for (var r = 0; r < rows.length; r++) {
       var row = rows[r];
-      x += '<row r="' + rowNo + '"' + (s.rowHeight ? ' ht="' + s.rowHeight + '" customHeight="1"' : '') + '>';
+      parts.push('<row r="' + rowNo + '"' + (s.rowHeight ? ' ht="' + s.rowHeight + '" customHeight="1"' : '') + '>');
       for (var cc = 0; cc < nCols; cc++) {
         var v = row[cc];
         var st = s.dataStyle == null ? 2 : s.dataStyle;
@@ -181,29 +180,29 @@
         // 空单元格也写入样式：保证整个数据区都有框线（无边框样式 0/4 除外）
         if (v == null || v === '') {
           if (st === 0 || st === 4) continue;
-          x += cellXml(colName(cc + 1) + rowNo, '', st);
+          parts.push(cellXml(colName(cc + 1) + rowNo, '', st));
           continue;
         }
-        x += cellXml(colName(cc + 1) + rowNo, v, st);
+        parts.push(cellXml(colName(cc + 1) + rowNo, v, st));
       }
-      x += '</row>';
+      parts.push('</row>');
       rowNo++;
     }
-    x += '</sheetData>';
+    parts.push('</sheetData>');
 
     if (s.autoFilter && totalRows > 1) {
-      x += '<autoFilter ref="A1:' + colName(nCols) + totalRows + '"/>';
+      parts.push('<autoFilter ref="A1:' + colName(nCols) + totalRows + '"/>');
     }
     if (s.validations && s.validations.length) {
-      x += '<dataValidations count="' + s.validations.length + '">';
+      parts.push('<dataValidations count="' + s.validations.length + '">');
       s.validations.forEach(function (v) {
-        x += '<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="' + v.sqref + '">' +
-          '<formula1>' + esc(v.formula) + '</formula1></dataValidation>';
+        parts.push('<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="1" sqref="' + v.sqref + '">' +
+          '<formula1>' + esc(v.formula) + '</formula1></dataValidation>');
       });
-      x += '</dataValidations>';
+      parts.push('</dataValidations>');
     }
-    x += '</worksheet>';
-    return x;
+    parts.push('</worksheet>');
+    return parts.join('');
   }
 
   function cellXml(ref, v, styleId) {
@@ -260,7 +259,9 @@
       files.push({ name: 'xl/worksheets/sheet' + (i + 1) + '.xml', data: sheetXml(s) });
     });
 
-    return (spec.zipImpl || (typeof ZipUtil !== 'undefined' ? ZipUtil : null)).zip(files);
+    var zipImpl = spec.zipImpl || (typeof ZipUtil !== 'undefined' ? ZipUtil : null);
+    // 透传进度回调：打包大文件时让页面能显示进度，避免用户以为卡死
+    return zipImpl.zip(files, spec.onProgress);
   }
 
   return { build: build, colName: colName };

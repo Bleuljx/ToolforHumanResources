@@ -7,7 +7,7 @@ OUT = sys.argv[1] if len(sys.argv) > 1 else "att_out"
 CITY = os.path.join(OUT, "【考勤差异】钟公庙蝶城2026-10-01~10-05.xlsx")
 RMF = os.path.join(OUT, "【考勤差异】钟公庙蝶城机师岗2026-10-01~10-05.xlsx")
 RMF2 = os.path.join(OUT, "【考勤差异】海潮映月蝶城机师岗2026-10-01.xlsx")
-SUM = os.path.join(OUT, "【考勤差异】10月迟到早退汇总.xlsx")
+SUM = os.path.join(OUT, "【考勤差异】10月差异数据汇总.xlsx")
 
 failed = 0
 def check(cond, msg):
@@ -20,13 +20,15 @@ check(wb.sheetnames == ["SHR员工考勤", "考勤差异明细", "迟到早退�
                         "计薪工时", "理论工时", "打卡工时", "工时比对"],
       "外包文件 8 张工作表齐全（无 RM）：" + ",".join(wb.sheetnames))
 wbrm = openpyxl.load_workbook(RMF)
-check(wbrm.sheetnames == ["RM员工考勤", "迟到早退明细", "迟到早退统计"], "机师岗文件 3 张工作表（主表+迟到早退明细/统计）")
+check(wbrm.sheetnames == ["RM员工考勤", "迟到早退明细", "迟到早退统计", "计薪工时", "理论工时", "打卡工时", "工时比对"],
+      "机师岗文件 7 张工作表（主表+迟到早退明细/统计+4张工时矩阵）：" + ",".join(wbrm.sheetnames))
 wrm = wbrm["迟到早退统计"]
 rm_stat_names = [wrm.cell(row=r, column=1).value for r in range(2, wrm.max_row + 1)]
 check("孙八" in rm_stat_names and "周九" not in rm_stat_names, "机师岗统计含孙八（迟到）不含周九（正常）")
 check("李四" not in rm_stat_names and "张三" not in rm_stat_names, "机师岗统计不含外包人员")
-check(wrm.cell(row=wrm.max_row, column=3).value == "合计" and wrm.cell(row=wrm.max_row, column=13).value == 10,
+check(wrm.cell(row=wrm.max_row, column=4).value == "合计" and wrm.cell(row=wrm.max_row, column=14).value == 10,
       "机师岗统计合计=10（孙八迟到8分钟扣10）")
+check([wrm.cell(row=1, column=c).value for c in range(3, 5)] == ["项目", "岗位"], "机师岗统计表编码后是项目、岗位")
 
 # ---------- 主表 SHR ----------
 ws = wb["SHR员工考勤"]
@@ -90,15 +92,19 @@ check("张三" in diff_names and "赵六" in diff_names and "钱七" not in [ws.
 
 # ---------- 统计 ----------
 ws = wb["迟到早退统计"]
-check([ws.cell(row=1, column=c).value for c in range(1, 5)] == ["员工姓名", "员工编号", "岗位/项目", "迟到<=5分钟次数"], "统计表头正确")
-check(ws.cell(row=1, column=5).fill.start_color.rgb.endswith("FFFF00"), "E1 表头黄底")
+check([ws.cell(row=1, column=c).value for c in range(1, 6)] == ["员工姓名", "员工编号", "项目", "岗位", "迟到<=5分钟次数"], "统计表头正确（编码后有项目、岗位）")
+check(ws.cell(row=1, column=6).fill.start_color.rgb.endswith("FFFF00"), "F1 表头黄底（迟到<=5分钟）")
 stat_names = [ws.cell(row=r, column=1).value for r in range(2, ws.max_row + 1)]
 check("李四" in stat_names and "孙八" in stat_names and "王五" in stat_names, "统计含李四/孙八/王五")
 check("张三" not in stat_names, "张三（无迟到早退）不在统计")
 last = ws.max_row
-check(ws.cell(row=last, column=3).value == "合计", "统计底部合计行")
-check(ws.cell(row=last, column=13).value == 50, f"扣款合计=50（实际 {ws.cell(row=last, column=13).value}）")
-check(ws.cell(row=last, column=3).fill.start_color.rgb.endswith("FFFFCC"), "合计行黄底")
+check(ws.cell(row=last, column=4).value == "合计", "统计底部合计行")
+check(ws.cell(row=last, column=14).value == 50, f"扣款合计=50（实际 {ws.cell(row=last, column=14).value}）")
+check(ws.cell(row=last, column=4).fill.start_color.rgb.endswith("FFFFCC"), "合计行黄底")
+# 项目列取花名册、岗位列取考勤岗位
+projs = [ws.cell(row=r, column=3).value for r in range(2, last) if ws.cell(row=r, column=1).value]
+check(sum(1 for v in projs if v) >= 2, "统计表项目列有值（花名册匹配到的员工）")
+check(any(ws.cell(row=r, column=4).value for r in range(2, last)), "统计表岗位列有值")
 
 # ---------- 矩阵 ----------
 ws = wb["计薪工时"]
@@ -115,7 +121,7 @@ check(names.get("钱七") and ws.cell(row=names["钱七"], column=2).value == "2
 check(ws.cell(row=names["张三"], column=5).value == 1, "张三 10-1 计薪工时=1 天")
 check(ws.cell(row=names["张三"], column=6).value == 0.75, "张三 10-2（校准后3卡）=0.75 天")
 check(ws.cell(row=names["赵六"], column=9).value == 0.5, "赵六 10-5 单卡单班次=0.5 天")
-check(ws.cell(row=names["钱七"], column=6).value == 0, "钱七 10-2 休班次=0 天")
+check(ws.cell(row=names["钱七"], column=6).value in (None, ""), "钱七 10-2 休班次计薪 0 已留空")
 check(ws.cell(row=names["胡乃传"], column=5).value == 1, "胡乃传 10-1 跨午夜班次2卡=1 天")
 ws = wb["迟到早退明细"]
 det_names = [ws.cell(row=r, column=1).value for r in range(2, ws.max_row + 1)]
@@ -128,9 +134,66 @@ check(ws.max_row == 1 and ws.cell(row=1, column=4).value == "姓名", "打卡工
 ws = wb["工时比对"]
 check(ws.max_row == 1, "工时比对空表只有表头")
 
+# ---------- 矩阵新样式：计薪工时高亮 + 行高 + 表头 ----------
+ws = wb["计薪工时"]
+# 0.75（张三10-2）应淡黄FFF2CC底+加粗；1.0（张三10-1）不应淡黄
+c075 = ws.cell(row=names["张三"], column=6)
+check(c075.fill.start_color.rgb.endswith("FFF2CC") and c075.font.bold,
+      "计薪工时 0.75 淡黄FFF2CC底+加粗（实际 fill=%s bold=%s）" % (c075.fill.start_color.rgb, c075.font.bold))
+c1 = ws.cell(row=names["张三"], column=5)
+check(c1.value == 1 and not (c1.fill.start_color.rgb or "").endswith("FFF2CC"),
+      "计薪工时 1.0 不高亮")
+c05 = ws.cell(row=names["赵六"], column=9)
+check(c05.value == 0.5 and (c05.fill.start_color.rgb or "").endswith("FFF2CC") and c05.font.bold,
+      "计薪工时 0.5 淡黄+加粗")
+# 0 值：留空 + 亮黄FFFFCC底（钱七10-2 为休班次，计薪 0）
+c0 = ws.cell(row=names["钱七"], column=6)
+check(c0.value in (None, "") and (c0.fill.start_color.rgb or "").endswith("FFFFCC") and not c0.font.bold,
+      "计薪工时 0 值留空+亮黄FFFFCC底（实际 val=%s fill=%s）" % (c0.value, c0.fill.start_color.rgb))
+# 出勤天数汇总列（最右列）
+sumcol = ws.max_column
+check(ws.cell(row=1, column=sumcol).value == "出勤天数汇总", "计薪工时最右列是「出勤天数汇总」")
+q7sum = ws.cell(row=names["钱七"], column=sumcol)
+check(q7sum.value == 1 and q7sum.font.bold, "钱七出勤天数汇总=1（10-1 的 1 + 10-2 的 0）且加粗，实际 %s" % q7sum.value)
+z3sum = ws.cell(row=names["张三"], column=sumcol)
+check(abs(z3sum.value - 1.75) < 0.01, "张三出勤天数汇总=1.75（10-1 的 1 + 10-2 的 0.75），实际 %s" % z3sum.value)
+check(abs(ws.row_dimensions[2].height - 23.5) < 0.6,
+      "计薪工时数据行高≈23.5pt(0.83cm)，实际 %s" % ws.row_dimensions[2].height)
+check(abs(ws.row_dimensions[1].height - 30) < 0.6,
+      "计薪工时表头行高≈30pt(1.06cm)，实际 %s" % ws.row_dimensions[1].height)
+check(ws.cell(row=1, column=5).alignment.horizontal == "center" and ws.cell(row=1, column=5).alignment.vertical == "top",
+      "计薪工时表头水平居中+垂直靠上")
+check(ws.auto_filter.ref and ws.auto_filter.ref.startswith("A1:"), "计薪工时已开筛选")
+wp = wb["打卡工时"]
+check(abs(wp.row_dimensions[1].height - 30) < 0.6,
+      "外包打卡工时空表表头行高≈30pt(1.06cm)，实际 %s" % wp.row_dimensions[1].height)
+check(wp.cell(row=1, column=5).alignment.vertical == "top", "外包打卡工时表头垂直靠上")
+
+# ---------- 机师岗工时矩阵（仅 RM 人员） ----------
+wr = wbrm["计薪工时"]
+rnames = {wr.cell(row=r, column=4).value: r for r in range(2, wr.max_row + 1)}
+check("钱七" in rnames and "张三" not in rnames, "机师岗计薪工时只含 RM 人员（钱七），不含外包张三")
+q7 = rnames["钱七"]
+check(wr.cell(row=q7, column=5).value == 1,
+      "机师岗钱七10-1计薪工时=1（2班次4卡×0.25封顶1），照搬外包折算规则")
+# 高亮 styleFn 与外包共用，已由外包 0.75/0.5 验证；机师岗样例无 0.1-0.9 值，此处验证不高亮
+check(not (wr.cell(row=q7, column=5).fill.start_color.rgb or "").endswith("FFF2CC"),
+      "机师岗满勤1不高亮")
+wp2 = wbrm["打卡工时"]
+p7 = {wp2.cell(row=r, column=4).value: r for r in range(2, wp2.max_row + 1)}["钱七"]
+check(wp2.cell(row=p7, column=5).value == 8,
+      "机师岗钱七10-1打卡工时=8（两条班次各4小时求和），实际 %s" % wp2.cell(row=p7, column=5).value)
+check(wbrm["理论工时"].cell(row=2, column=4).value is not None and wbrm["工时比对"].max_row >= 1,
+      "机师岗理论工时/工时比对表存在")
+check(wr.cell(row=1, column=wr.max_column).value == "出勤天数汇总" and wr.cell(row=q7, column=wr.max_column).font.bold,
+      "机师岗计薪工时也有出勤天数汇总列且加粗")
+check(abs(wp2.row_dimensions[2].height - 23.5) < 0.6 and wp2.cell(row=1, column=5).alignment.vertical == "top"
+      and bool(wp2.auto_filter.ref), "机师岗打卡工时行高+表头靠上+筛选正确")
+
 # ---------- 机师岗文件（海潮映月，RM 原始文件混入的其他蝶城按记录拆出） ----------
 wb3 = openpyxl.load_workbook(RMF2)
-check(wb3.sheetnames == ["RM员工考勤", "迟到早退统计"], "海潮映月机师岗文件 2 张工作表（RM主表+统计）")
+check(wb3.sheetnames == ["RM员工考勤", "迟到早退统计", "计薪工时", "理论工时", "打卡工时", "工时比对"],
+      "海潮映月机师岗文件 6 张工作表（RM主表+统计+4张工时矩阵）：" + ",".join(wb3.sheetnames))
 ws3 = wb3["RM员工考勤"]
 rm3_names = [ws3.cell(row=r, column=2).value for r in range(2, ws3.max_row + 1)]
 check("孙十" in rm3_names and "钱七" not in rm3_names and "周九" not in rm3_names,
@@ -138,11 +201,23 @@ check("孙十" in rm3_names and "钱七" not in rm3_names and "周九" not in rm
 
 # ---------- 汇总总表 ----------
 wb2 = openpyxl.load_workbook(SUM)
-check(wb2.sheetnames == ["迟到早退统计汇总", "迟到早退明细汇总", "在职无出勤"], "汇总 3 张工作表")
+check(wb2.sheetnames == ["迟到早退统计汇总", "迟到早退明细汇总", "在职无出勤", "各蝶城差异汇总"], "汇总 4 张工作表（新增各蝶城差异汇总）")
 ws = wb2["迟到早退统计汇总"]
-check(ws.cell(row=1, column=1).value == "蝶城", "统计汇总带蝶城列")
+check(ws.cell(row=1, column=1).value == "蝶城" and [ws.cell(row=1, column=c).value for c in (4, 5)] == ["项目", "岗位"], "统计汇总带蝶城列+项目/岗位")
 check(ws.cell(row=2, column=1).value == "钟公庙蝶城", "统计汇总蝶城值正确")
-check(ws.cell(row=ws.max_row, column=3).value == "合计", "统计汇总合计行")
+check(ws.cell(row=ws.max_row, column=4).value == "合计", "统计汇总合计行")
+# 汇总行比蝶城统计多一列「蝶城」，合计行各数值列必须按 15 列口径累加（回归：曾把次数当扣款、把岗位字符串拼进次数）
+last = ws.max_row
+check(all(isinstance(ws.cell(row=last, column=c).value, (int, float)) for c in range(6, 16)),
+      "统计汇总合计行 6~15 列都是数字，不出现岗位字符串拼接（实际 %s）" %
+      [ws.cell(row=last, column=c).value for c in range(6, 16)])
+check(ws.cell(row=last, column=15).value == 50,
+      "统计汇总合计行扣款合计=50（实际 %s）" % ws.cell(row=last, column=15).value)
+check(ws.cell(row=last, column=12).value == 2 and ws.cell(row=last, column=13).value == 1 and ws.cell(row=last, column=14).value == 3,
+      "统计汇总合计行迟到/早退/合计次数按新列位置正确（2/1/3）")
+ws2 = wb2["各蝶城差异汇总"]
+check([ws2.cell(row=1, column=c).value for c in range(1, 6)] == ["蝶城", "差异总数", "迟到总数", "早退总数", "迟到早退扣款总数"], "各蝶城差异汇总表头正确")
+check(ws2.cell(row=ws2.max_row, column=1).value == "合计" and ws2.max_row >= 2, "各蝶城差异汇总含合计行")
 ws = wb2["在职无出勤"]
 check(ws.cell(row=2, column=2).value == "吴十", "在职无出勤=吴十")
 check(ws.cell(row=2, column=1).value == "钟公庙蝶城", "无出勤名单带蝶城")

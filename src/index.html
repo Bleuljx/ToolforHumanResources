@@ -181,6 +181,25 @@
   .rc-stats b{font-size:17px;font-weight:600;color:var(--ink)}
   .rc-stats span{font-size:11.5px;color:var(--ink-3)}
   .rc-actions{display:flex;gap:8px;flex-wrap:wrap}
+  /* 考勤结果三模块大卡 */
+  .module-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+  .module-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;position:relative}
+  .mc-head{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+  .mc-title{font-size:15px;font-weight:600;color:var(--ink);display:block}
+  .mc-head .btn{align-self:flex-start}
+  .mc-stats{display:flex;flex-wrap:wrap;gap:12px 20px;margin-top:12px;padding-top:12px;border-top:1px solid #eef1f4}
+  .mc-stats>.mc-stat{display:flex;flex-direction:column;gap:2px}
+  .mc-stats b{font-size:16px;font-weight:600;color:var(--ink)}
+  .mc-stats span{font-size:11px;color:var(--ink-3)}
+  .mc-file-num{border-bottom:1px dashed var(--ink-3)}
+  /* 清单气泡：浮在卡片下方、脱离鼠标位置，且自身不接收鼠标事件（避免 hover 反复触发闪烁） */
+  .filelist-tip{display:none;position:absolute;top:100%;left:0;margin-top:8px;z-index:30;pointer-events:none;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px 12px;min-width:220px;max-width:420px;
+    max-height:260px;overflow:auto;font-size:12px;color:var(--ink);line-height:1.9}
+  .filelist-tip>div{white-space:nowrap}
+  .filelist-host:hover .filelist-tip{display:block}
+  @media(max-width:900px){.module-cards{grid-template-columns:1fr}}
   .result-foot{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--ink-3);padding:6px 2px 0;flex-wrap:wrap;gap:8px}
   .foot-actions{display:flex;gap:8px;flex-wrap:wrap}
   /* ---------- 空视图 ---------- */
@@ -437,7 +456,7 @@
       <div><h1 id="topTitle">超7天未出勤</h1></div>
       <div class="top-actions">
         <button class="btn hidden" id="btnRun" data-topview="salary">开始生成</button>
-        <button class="btn btn-line hidden" id="btnAttZipTop" data-topview="attendance">打包下载 zip</button>
+        <button class="btn btn-line hidden" id="btnAttZipTop" data-topview="attendance">打包下载</button>
         <button class="btn hidden" id="btnAttRun" data-topview="attendance">开始生成</button>
         <button class="btn hidden" id="btnRenRun" data-topview="rename">开始重命名</button>
         <button class="btn btn-line hidden" id="btnRenProblems" data-topview="rename" disabled>问题清单明细</button>

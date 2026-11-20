@@ -66,10 +66,11 @@ async function saveBlob(d) {
   const ok = await waitFor(() => /生成完成/.test(doc.querySelector('#toast').textContent), 30000);
   assert(ok, '生成完成提示出现');
 
-  const btns = Array.from(doc.querySelectorAll('#attResults [data-att-dl]'));
-  assert(btns.length === 4, '生成 4 个下载按钮（钟公庙外包 + 钟公庙机师岗 + 海潮映月机师岗 + 汇总总表），实际 ' + btns.length);
-  btns.forEach(b => b.click());
-  await sleep(100);
+  const btns = Array.from(doc.querySelectorAll('#attResults [data-att-group]'));
+  assert(btns.length === 3, '生成 3 个模块下载按钮（外包/机师岗RM/数据汇总），实际 ' + btns.length);
+  // 新版：批量下载按钮逐个触发，间隔 120ms，等足够时间下完 4 个文件
+  for (const b of btns) b.click();
+  await sleep(1200);
 
   const dls = downloads.filter(d => d.name.endsWith('.xlsx'));
   assert(dls.length === 4, '生成 4 个 xlsx，实际 ' + dls.length);
@@ -81,7 +82,7 @@ async function saveBlob(d) {
   assert(!!cityFile && cityFile.name === '【考勤差异】钟公庙蝶城2026-10-01~10-05.xlsx', '外包文件名=蝶城+核算周期（实际 ' + (cityFile && cityFile.name) + '）');
   assert(!!rmFile && rmFile.name === '【考勤差异】钟公庙蝶城机师岗2026-10-01~10-05.xlsx', '机师岗文件名=蝶城+机师岗+核算周期（实际 ' + (rmFile && rmFile.name) + '）');
   assert(!!rm2File, 'RM 原始文件里混入的其他蝶城（海潮映月）按记录拆分出独立机师岗文件');
-  assert(!!sumFile && sumFile.name === '【考勤差异】10月迟到早退汇总.xlsx', '汇总总表文件名正确');
+  assert(!!sumFile && sumFile.name === '【考勤差异】10月差异数据汇总.xlsx', '汇总总表文件名正确（差异数据汇总）');
 
   // 问题清单在最后
   const cards = Array.from(doc.querySelectorAll('#attResults .result-card'));
@@ -92,11 +93,28 @@ async function saveBlob(d) {
   const probText = doc.querySelector('#attResults').textContent;
   assert(!/已从外包考勤剔除/.test(probText), '问题清单不含机师岗剔除记录');
   assert(!/打卡校准/.test(probText), '问题清单不含打卡校准 info 记录');
-  assert(/数据统计/.test(probText) && /主表行数/.test(probText) && /扣款合计（元）/.test(probText), '结果区含数据统计看板');
+  assert(/外包考勤结果/.test(probText) && /机师岗RM考勤结果/.test(probText) && /数据汇总/.test(probText)
+    && /扣款合计（元）/.test(probText), '结果区含三模块大卡（外包/机师岗RM/数据汇总+扣款合计）');
+  // 回归：汇总统计 15 列，扣款合计应按金额列（样例 20+10+20=50），不能按次数列
+  const sumCard = Array.from(doc.querySelectorAll('#attResults .module-card'))
+    .find(c => /数据汇总/.test(c.querySelector('.mc-title').textContent));
+  assert(!!sumCard && /<b>50<\/b><span>扣款合计（元）<\/span>/.test(sumCard.innerHTML),
+    '数据汇总卡扣款合计=50（实际 ' + (sumCard && sumCard.textContent.match(/\d+(?=扣款合计（元）)/)) + '）');
+  // 小字/问号/闪烁：去掉「N 个文件」与 title 提示，悬浮改挂在数字统计区
+  assert(!/个文件/.test(doc.querySelector('#attResults').innerHTML), '三张卡均不再显示「N 个文件」小字');
+  assert(!/悬浮查看文件清单/.test(doc.querySelector('#attResults').innerHTML), '不再有原生 title 提示（避免闪烁）');
+  assert(!/cursor:help/.test(html) && !/\.mc-count\{/.test(html), '去掉 help 问号光标与橙色小字样式');
+  const hosts = Array.from(doc.querySelectorAll('#attResults .filelist-host'));
+  assert(hosts.length === 2 && hosts.every(e => e.classList.contains('mc-stats')),
+    '只有外包/机师岗两张卡的数字统计区可悬浮看文件清单（数据汇总卡无）');
+  assert(doc.querySelectorAll('#attResults .filelist-tip').length === 2, '两张卡各带一个文件清单气泡');
+  assert(/pointer-events:none/.test(html) && /\.filelist-host:hover \.filelist-tip/.test(html),
+    '气泡禁用鼠标事件且由数字区悬浮触发（不闪烁）');
   assert(/在职无出勤人员明细/.test(probText), '结果区含在职无出勤明细表标题');
   assert(/吴十/.test(probText), '在职无出勤明细列出吴十');
-  const noAttCard = cards.filter(c => /在职无出勤人员明细/.test(c.textContent))[0];
-  assert(!!noAttCard && /<table/.test(noAttCard.innerHTML) && /蝶城/.test(noAttCard.textContent), '无出勤明细以表格展示（含蝶城/姓名列）');
+  const subArea = doc.querySelector('#attResults').innerHTML;
+  const noAttTable = Array.from(doc.querySelectorAll('#attResults .att-subhead')).filter(e => /在职无出勤人员明细/.test(e.textContent))[0];
+  assert(!!noAttTable && /蝶城/.test(doc.querySelector('#attResults').textContent) && /<table/.test(subArea), '无出勤明细以表格展示（含蝶城/姓名列）');
   // 问题清单卡片：只含系统计算问题（周九花名册未匹配），不再含无出勤
   const probCard = cards.filter(c => /<span class="rc-city">问题清单<\/span>/.test(c.innerHTML))[0];
   assert(!!probCard, '问题清单卡存在（有花名册未匹配问题）');

@@ -181,6 +181,25 @@
   .rc-stats b{font-size:17px;font-weight:600;color:var(--ink)}
   .rc-stats span{font-size:11.5px;color:var(--ink-3)}
   .rc-actions{display:flex;gap:8px;flex-wrap:wrap}
+  /* 考勤结果三模块大卡 */
+  .module-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+  .module-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 18px;position:relative}
+  .mc-head{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+  .mc-title{font-size:15px;font-weight:600;color:var(--ink);display:block}
+  .mc-head .btn{align-self:flex-start}
+  .mc-stats{display:flex;flex-wrap:wrap;gap:12px 20px;margin-top:12px;padding-top:12px;border-top:1px solid #eef1f4}
+  .mc-stats>.mc-stat{display:flex;flex-direction:column;gap:2px}
+  .mc-stats b{font-size:16px;font-weight:600;color:var(--ink)}
+  .mc-stats span{font-size:11px;color:var(--ink-3)}
+  .mc-file-num{border-bottom:1px dashed var(--ink-3)}
+  /* 清单气泡：浮在卡片下方、脱离鼠标位置，且自身不接收鼠标事件（避免 hover 反复触发闪烁） */
+  .filelist-tip{display:none;position:absolute;top:100%;left:0;margin-top:8px;z-index:30;pointer-events:none;
+    background:#fff;border:1px solid var(--line);border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.14);padding:10px 12px;min-width:220px;max-width:420px;
+    max-height:260px;overflow:auto;font-size:12px;color:var(--ink);line-height:1.9}
+  .filelist-tip>div{white-space:nowrap}
+  .filelist-host:hover .filelist-tip{display:block}
+  @media(max-width:900px){.module-cards{grid-template-columns:1fr}}
   .result-foot{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--ink-3);padding:6px 2px 0;flex-wrap:wrap;gap:8px}
   .foot-actions{display:flex;gap:8px;flex-wrap:wrap}
   /* ---------- 空视图 ---------- */
@@ -437,7 +456,7 @@
       <div><h1 id="topTitle">超7天未出勤</h1></div>
       <div class="top-actions">
         <button class="btn hidden" id="btnRun" data-topview="salary">开始生成</button>
-        <button class="btn btn-line hidden" id="btnAttZipTop" data-topview="attendance">打包下载 zip</button>
+        <button class="btn btn-line hidden" id="btnAttZipTop" data-topview="attendance">打包下载</button>
         <button class="btn hidden" id="btnAttRun" data-topview="attendance">开始生成</button>
         <button class="btn hidden" id="btnRenRun" data-topview="rename">开始重命名</button>
         <button class="btn btn-line hidden" id="btnRenProblems" data-topview="rename" disabled>问题清单明细</button>
@@ -2850,7 +2869,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
           var m = rosterOf(r);
           statMap[key] = {
             name: r.name, code: r.code,
-            third: r.type === 'shr' ? r.post : (m ? m.row.project : r.post),
+            // 编码后加项目、项目后为岗位：项目取花名册优先、源表兜底；岗位取考勤行岗位（两类都有岗位列）
+            project: (m && toStr(m.row.project)) ? toStr(m.row.project) : toStr(r.project || ''),
+            post: toStr(r.post || ''),
             l5: 0, l15: 0, l120: 0, e5: 0, e15: 0, e120: 0, ded: 0
           };
           statOrder.push(key);
@@ -2869,7 +2890,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         var s = statMap[k];
         var total = s.l5 + s.l15 + s.l120 + s.e5 + s.e15 + s.e120;
         if (total <= 0) return;
-        out.push([s.name, s.code, s.third, s.l5, s.l15, s.l120, s.e5, s.e15, s.e120,
+        out.push([s.name, s.code, s.project, s.post, s.l5, s.l15, s.l120, s.e5, s.e15, s.e120,
           s.l5 + s.l15 + s.l120, s.e5 + s.e15 + s.e120, total, round2(s.ded)]);
       });
       return out;
@@ -3004,7 +3025,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   /* ---------------- 汇总总表 ---------------- */
 
-  var SUMMARY_STAT_HEAD = ['蝶城', '员工姓名', '员工编号', '岗位/项目', '迟到<=5分钟次数', '迟到<=15分钟次数', '迟到15-120分钟',
+  var SUMMARY_STAT_HEAD = ['蝶城', '员工姓名', '员工编号', '项目', '岗位', '迟到<=5分钟次数', '迟到<=15分钟次数', '迟到15-120分钟',
     '早退<=5分钟次数', '早退<=15分钟次数', '早退15-120分钟', '合计迟到次数', '合计早退次数', '迟到早退合计', '扣款合计'];
   var SUMMARY_DETAIL_HEAD = ['蝶城'].concat(UNI_HEAD);
 
@@ -3016,6 +3037,24 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       c.noAttendance.forEach(function (r) { noAtt.push(r); });
     });
     return { statRows: statRows, detailRows: detailRows, noAttendance: noAtt };
+  }
+
+  /* 统计行的 10 个数值列（迟到<=5/<=15/15-120、早退同、合计迟到/早退/总次数、扣款合计）。
+     蝶城统计表是 14 列，汇总总表前面多一列「蝶城」是 15 列——统一从这里取数，
+     否则会按旧下标把「迟到早退合计（次数）」当成「扣款合计（元）」。 */
+  function statNums(r) {
+    var d = r.length >= 15 ? r.slice(1) : r, out = [];
+    for (var i = 4; i <= 13; i++) {
+      var v = d[i];
+      out.push(typeof v === 'number' ? v : (Number(v) || 0));
+    }
+    return out;
+  }
+  /* 扣款合计：取统计行最后一列金额，兼容带/不带蝶城列两种行 */
+  function statDed(rows) {
+    var s = 0;
+    (rows || []).forEach(function (r) { s += statNums(r)[9]; });
+    return round2(s);
   }
 
   /* ---------------- 导出工作簿 spec ---------------- */
@@ -3054,8 +3093,8 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   }
   function statStyle(r, c, v, isTotal) {
     if (isTotal) return c === 13 ? 14 : 9;
-    if (c >= 3 && c <= 12 && typeof v === 'number' && v > 0) return 8;
-    return c === 13 ? 3 : 2;
+    if (c >= 4 && c <= 13 && typeof v === 'number' && v > 0) return 8;
+    return c === 13 ? 3 : 2;   // 扣款合计列（第 14 列，下标 13）保留两位小数
   }
 
   /* 计薪工时高亮规则（第 0~3 列是 项目/入职/离职/姓名，从第 4 列起是日期工时格）：
@@ -3120,20 +3159,21 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     if (statData.length) {
       var t = { l5: 0, l15: 0, l120: 0, e5: 0, e15: 0, e120: 0, lt: 0, et: 0, tt: 0, ded: 0 };
       statData.forEach(function (r) {
-        t.l5 += r[3]; t.l15 += r[4]; t.l120 += r[5]; t.e5 += r[6]; t.e15 += r[7]; t.e120 += r[8];
-        t.lt += r[9]; t.et += r[10]; t.tt += r[11]; t.ded += r[12];
+        var d = statNums(r);
+        t.l5 += d[0]; t.l15 += d[1]; t.l120 += d[2]; t.e5 += d[3]; t.e15 += d[4]; t.e120 += d[5];
+        t.lt += d[6]; t.et += d[7]; t.tt += d[8]; t.ded += d[9];
       });
-      statData.push(['', '', '合计', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
+      statData.push(['', '', '', '合计', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
     }
     return {
       name: '迟到早退统计', header: statHead, rows: statData, headerStyle: 7,
-      headerStyleFn: function (cc) { return (cc === 4 || cc === 7) ? 10 : 7; },
+      headerStyleFn: function (cc) { return (cc === 5 || cc === 8) ? 10 : 7; },
       styleFn: function (r, cc) {
-        if (r === statData.length - 1 && statData.length > rawCount) return cc === 12 ? 14 : 9;   // 合计行
+        if (r === statData.length - 1 && statData.length > rawCount) return cc === 13 ? 14 : 9;   // 合计行
         return statStyle(r, cc, statData[r][cc], false);
       },
       freeze: { x: 0, y: 1 }, autoFilter: true, rowHeight: 24.75,
-      cols: [10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
+      cols: [10, 12, 14, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
     };
   }
 
@@ -3193,26 +3233,28 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     return files;
   }
 
-  function summarySpecs(s) {
+  function summarySpecs(s, cities) {
     var specs = [];
     var statData = s.statRows.slice();
     if (statData.length) {
       var t = { l5: 0, l15: 0, l120: 0, e5: 0, e15: 0, e120: 0, lt: 0, et: 0, tt: 0, ded: 0 };
       statData.forEach(function (r) {
-        t.l5 += r[4]; t.l15 += r[5]; t.l120 += r[6]; t.e5 += r[7]; t.e15 += r[8]; t.e120 += r[9];
-        t.lt += r[10]; t.et += r[11]; t.tt += r[12]; t.ded += r[13];
+        var d = statNums(r);   // 汇总行前面多一列蝶城，必须走助手换算
+        t.l5 += d[0]; t.l15 += d[1]; t.l120 += d[2]; t.e5 += d[3]; t.e15 += d[4]; t.e120 += d[5];
+        t.lt += d[6]; t.et += d[7]; t.tt += d[8]; t.ded += d[9];
       });
-      statData.push(['', '', '合计', '', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
+      statData.push(['', '', '', '合计', '', t.l5, t.l15, t.l120, t.e5, t.e15, t.e120, t.lt, t.et, t.tt, round2(t.ded)]);
     }
     specs.push({
       name: '迟到早退统计汇总', header: SUMMARY_STAT_HEAD, rows: statData, headerStyle: 7,
       styleFn: function (r, cc) {
-        if (r === statData.length - 1 && statData.length > s.statRows.length) return cc === 13 ? 14 : 9;   // 合计行
-        if (cc >= 4 && cc <= 13 && typeof statData[r][cc] === 'number' && statData[r][cc] > 0) return 8;
-        return cc === 13 ? 3 : 2;
+        // 汇总表 15 列：蝶城(0) 姓名(1) 编号(2) 项目(3) 岗位(4) 数值(5..14)，扣款合计在 14
+        if (r === statData.length - 1 && statData.length > s.statRows.length) return cc === 14 ? 14 : 9;   // 合计行
+        if (cc >= 5 && cc <= 14 && typeof statData[r][cc] === 'number' && statData[r][cc] > 0) return 8;
+        return cc === 14 ? 3 : 2;
       },
       freeze: { x: 0, y: 1 }, autoFilter: true, rowHeight: 24.75,
-      cols: [12, 10, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
+      cols: [12, 10, 12, 14, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 10]
     });
     specs.push({
       name: '迟到早退明细汇总', header: SUMMARY_DETAIL_HEAD, rows: s.detailRows, headerStyle: 7,
@@ -3225,6 +3267,33 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       rows: s.noAttendance, headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
       cols: [12, 10, 12, 16, 11, 11]
     });
+
+    /* 各蝶城差异数据汇总：差异总数 / 迟到总数 / 早退总数 / 迟到早退扣款总数 */
+    if (cities && cities.length) {
+      var cityRows = [], T = { diff: 0, late: 0, early: 0, ded: 0 };
+      cities.forEach(function (c) {
+        var late = 0, early = 0, ded = 0;
+        (c.statRows || []).forEach(function (r) {
+          var d = statNums(r);
+          late += d[6]; early += d[7]; ded += d[9];
+        });
+        var diff = (c.diffRows || []).length;
+        cityRows.push([c.city, diff, late, early, round2(ded)]);
+        T.diff += diff; T.late += late; T.early += early; T.ded += ded;
+      });
+      cityRows.push(['合计', T.diff, T.late, T.early, round2(T.ded)]);
+      specs.push({
+        name: '各蝶城差异汇总',
+        header: ['蝶城', '差异总数', '迟到总数', '早退总数', '迟到早退扣款总数'],
+        rows: cityRows, headerStyle: 7, dataStyle: 2,
+        styleFn: function (r, cc) {
+          if (r === cityRows.length - 1) return cc === 4 ? 14 : 9;   // 合计行
+          return cc >= 1 && cc <= 4 && typeof cityRows[r][cc] === 'number' && cityRows[r][cc] > 0 ? 3 : 2;
+        },
+        freeze: { x: 0, y: 1 }, autoFilter: true, rowHeight: 24.75,
+        cols: [18, 12, 12, 12, 20]
+      });
+    }
     return specs;
   }
 
@@ -3244,6 +3313,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     },
     cityFileSpecs: cityFileSpecs,
     summarySpecs: summarySpecs,
+    statDed: statDed,
     matchRoster: matchRoster
   };
 });
@@ -5713,7 +5783,7 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     });
     var months = res.cities.map(function (c) { return c.monthLabel; }).filter(function (x) { return x; });
     var monthLabel = months.length ? months.sort()[0] : '';
-    specs.push({ name: '【考勤差异】' + monthLabel + '迟到早退汇总.xlsx', city: '', kind: 'summary', sheets: A.summarySpecs(res.summary) });
+    specs.push({ name: '【考勤差异】' + monthLabel + '差异数据汇总.xlsx', city: '', kind: 'summary', sheets: A.summarySpecs(res.summary, res.cities) });
 
     // 逐个生成：每个文件之间让出主线程，按钮显示进度；最终产物与原来 Promise.all 完全一致
     return specs.reduce(function (chain, sp, i) {
@@ -5751,42 +5821,71 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     var r = state.results;
     var h = '';
 
-    /* 每个蝶城一张结果卡（可能含外包/机师岗两个文件） */
-    r.cities.forEach(function (c) {
-      var cFiles = r.files.map(function (f, i) { return { f: f, i: i }; })
-        .filter(function (x) { return x.f.kind === 'city' && x.f.city === c.city; });
-      h += '<div class="result-card"><div class="rc-head">' +
-        '<div><span class="rc-city">' + esc(c.city) + '</span>' +
-        '<span class="rc-file">考勤期间 ' + esc(c.periodStart || '') + ' ~ ' + esc(c.periodEnd || '') + ' · ' + c.peopleCount + ' 人</span>' +
-        '</div><div class="rc-actions">' +
-        cFiles.map(function (x) {
-          return '<button class="btn" data-att-dl="' + x.i + '">' + (x.f.name.indexOf('机师岗') >= 0 ? '下载机师岗' : '下载外包') + '</button>';
-        }).join('') +
-        '</div></div>';
-      h += '<div class="rc-stats">' +
-        '<div><b>' + (c.shrRows.length + c.rmRows.length) + '</b><span>主表行数</span></div>' +
-        '<div><b>' + c.diffRows.length + '</b><span>考勤差异</span></div>' +
-        '<div><b>' + c.statRows.length + '</b><span>有迟到早退的人数</span></div>' +
-        '<div><b>' + roundDed(c.statRows) + '</b><span>扣款合计（元）</span></div>' +
-        '<div><b>' + c.noAttendance.length + '</b><span>在职无出勤</span></div>' +
-        '</div>';
-      h += '</div>';
-    });
-
-    /* 跨蝶城汇总 */
+    /* 三个模块的文件分组 */
+    var outFiles = [], rmFiles = [], sumFiles = [];
     r.files.forEach(function (f, i) {
-      if (f.kind !== 'summary') return;
-      h += '<div class="result-card"><div class="rc-head">' +
-        '<div><span class="rc-city">' + esc(f.name) + '</span><span class="rc-file">跨蝶城汇总</span></div>' +
-        '<div class="rc-actions"><button class="btn" data-att-dl="' + i + '">下载 xlsx</button></div></div>';
-      h += '<div class="rc-stats">' +
-        '<div><b>' + r.summary.statRows.length + '</b><span>统计行数</span></div>' +
-        '<div><b>' + r.summary.detailRows.length + '</b><span>迟到早退明细</span></div>' +
-        '<div><b>' + r.summary.noAttendance.length + '</b><span>在职无出勤</span></div>' +
-        '</div></div>';
+      var item = { f: f, i: i };
+      if (f.kind === 'summary') sumFiles.push(item);
+      else if (f.name.indexOf('机师岗') >= 0) rmFiles.push(item);
+      else outFiles.push(item);
     });
 
-    /* 数据统计看板 + 在职无出勤明细 */
+    /* 各组差异数：外包=shr差异、机师岗=rm差异 */
+    var outDiff = 0, rmDiff = 0, outStat = 0, rmStat = 0, outDed = 0, rmDed = 0;
+    r.cities.forEach(function (c) {
+      // 用 姓名|日期 集合区分差异行属于外包还是机师岗（避免逐行 O(n²) 扫描）
+      var shrKey = {}, rmKey = {};
+      (c.shrRows || []).forEach(function (s) { shrKey[s[0] + '|' + s[3]] = 1; });
+      (c.rmRows || []).forEach(function (s) { rmKey[s[1] + '|' + s[3]] = 1; });
+      (c.diffRows || []).forEach(function (x) {
+        var k = x[0] + '|' + x[3];
+        if (shrKey[k]) outDiff++;
+        else if (rmKey[k]) rmDiff++;
+      });
+      outStat += c.statRows.length;
+      rmStat += (c.statRowsRm || []).length;
+      outDed += roundDed(c.statRows);
+      rmDed += roundDed(c.statRowsRm || []);
+    });
+    outDed = Math.round(outDed * 100) / 100;
+    rmDed = Math.round(rmDed * 100) / 100;
+
+    function fileListTip(items) {
+      if (!items.length) return '';
+      return '<div class="filelist-tip">' + items.map(function (x) {
+        return '<div>' + esc(x.f.name) + '</div>';
+      }).join('') + '</div>';
+    }
+    /* 一张模块大卡：标题 + 下载按钮 + 数字统计区。
+       文件清单挂在「数字统计区」悬浮，不在标题下再显示「N 个文件」小字；
+       气泡本身不接收鼠标事件，避免盖住鼠标引起 显示/隐藏 来回闪烁。 */
+    function bigCard(title, items, stats, btnLabel, dlAttr, showList) {
+      var tip = showList ? fileListTip(items) : '';
+      h += '<div class="module-card"><div class="mc-head">' +
+        '<span class="mc-title">' + title + '</span>' +
+        '<button class="btn" ' + dlAttr + '>' + btnLabel + '</button></div>' +
+        '<div class="mc-stats' + (tip ? ' filelist-host' : '') + '">' + stats.map(function (s) {
+          return '<div class="mc-stat"><b' + (tip && s[2] ? ' class="mc-file-num"' : '') + '>' + s[0] +
+            '</b><span>' + s[1] + '</span></div>';
+        }).join('') + tip + '</div></div>';
+    }
+    h += '<div class="module-cards">';
+    bigCard('外包考勤结果', outFiles,
+      [['' + outDiff, '考勤差异数'], ['' + outFiles.length, '已生成文件数', true]],
+      '下载外包考勤', 'data-att-group="out"', true);
+    bigCard('机师岗RM考勤结果', rmFiles,
+      [['' + rmDiff, '考勤差异数'], ['' + rmFiles.length, '已生成文件数', true]],
+      '下载机师岗RM考勤', 'data-att-group="rm"', true);
+    var sumStat = r.summary || { statRows: [], detailRows: [], noAttendance: [] };
+    // 数据汇总固定只有 1 个文件，不再显示文件数，也不挂文件清单
+    bigCard('数据汇总', sumFiles,
+      [['' + sumStat.statRows.length, '统计行数'], ['' + sumStat.detailRows.length, '迟到早退明细'],
+       ['' + (sumStat.statRows.length + sumStat.detailRows.length + sumStat.noAttendance.length), '人员合计'],
+       ['' + A.statDed(sumStat.statRows), '扣款合计（元）'], ['' + sumStat.noAttendance.length, '在职无出勤']],
+      '下载汇总结果', 'data-att-group="sum"', false);
+    h += '</div>';
+
+    /* 在职无出勤明细（保持现状，放在三卡下面） */
     var T = { rows: 0, diff: 0, stat: 0, ded: 0, noAtt: 0 };
     r.cities.forEach(function (c) {
       T.rows += c.shrRows.length + c.rmRows.length;
@@ -5801,16 +5900,6 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
       c.noAttendance.forEach(function (a) { noAttAll.push(a); });
     });
 
-    h += '<div class="result-card"><div class="rc-head"><div><span class="rc-city">数据统计</span>' +
-      '<span class="rc-file">全部蝶城汇总</span></div></div>';
-    h += '<div class="rc-stats">' +
-      '<div><b>' + T.rows + '</b><span>主表行数</span></div>' +
-      '<div><b>' + T.diff + '</b><span>考勤差异</span></div>' +
-      '<div><b>' + T.stat + '</b><span>有迟到早退的人数</span></div>' +
-      '<div><b>' + T.ded + '</b><span>扣款合计（元）</span></div>' +
-      '<div><b>' + T.noAtt + '</b><span>在职无出勤</span></div>' +
-      '</div>';
-
     h += '<div class="att-subhead"><div><span class="t">在职无出勤人员明细</span><span class="n">' +
       noAttAll.length + ' 人（花名册在册、考勤期内无任何考勤记录）</span></div>' +
       (noAttAll.length ? '<button class="btn btn-line" id="btnNoAtt">下载明细.xlsx</button>' : '') + '</div>';
@@ -5824,7 +5913,6 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     } else {
       h += '<div class="att-empty">无在职无出勤人员</div>';
     }
-    h += '</div>';
 
     /* 问题清单放最后（只显示系统计算产生的问题） */
     if (r.problems.length) {
@@ -5850,6 +5938,25 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
         if (f) downloadBlob(f.blob, f.name);
       });
     });
+    // 三大模块批量下载（非 zip，逐个触发浏览器下载，按钮显示 1/N 进度）
+    $$('[data-att-group]', box).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var grp = b.dataset.attGroup;
+        var items = grp === 'out' ? outFiles : grp === 'rm' ? rmFiles : sumFiles;
+        if (!items.length) { toast('该模块没有可下载的文件', 'warn'); return; }
+        toast('浏览器可能询问「是否允许多个文件下载」，请点允许，约 ' + items.length + ' 个文件', 'warn');
+        var orig = b.textContent, i = 0;
+        b.disabled = true;
+        function next() {
+          if (i >= items.length) { b.textContent = orig; b.disabled = false; return; }
+          b.textContent = '下载中 ' + (i + 1) + '/' + items.length;
+          downloadBlob(items[i].f.blob, items[i].f.name);
+          i++;
+          setTimeout(next, 120);   // 间隔触发，避免浏览器把连续下载当作误操作拦截
+        }
+        next();
+      });
+    });
     var pb = $('#btnAttProblems');
     if (pb) pb.addEventListener('click', function () { downloadProblems(r.problems); });
     var nb = $('#btnNoAtt');
@@ -5869,9 +5976,8 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
   }
 
   function roundDed(statRows) {
-    var s = 0;
-    statRows.forEach(function (r) { s += r[12]; });
-    return Math.round(s * 100) / 100;
+    // 统一走 AttCore：自动兼容「蝶城统计表 14 列」与「汇总总表 15 列（带蝶城）」
+    return A.statDed(statRows);
   }
 
   function downloadProblems(problems) {
@@ -5897,13 +6003,27 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     if (zb) zb.addEventListener('click', function () {
       var r = state.results;
       if (!r || !r.files.length) { toast('请先点击「开始生成」', 'warn'); return; }
-      Promise.all(r.files.map(function (f) {
-        return f.blob.arrayBuffer().then(function (ab) { return { name: f.name, data: new Uint8Array(ab) }; });
-      })).then(function (entries) {
-        return Z.zip(entries);
-      }).then(function (u8) {
-        downloadBlob(new Blob([u8], { type: 'application/zip' }), '考勤处理结果.zip');
-      });
+      var orig = zb.textContent, done = 0, total = r.files.length;
+      zb.disabled = true;
+      zb.textContent = '打包中 0/' + total;
+      // 逐个读取+打包进度，避免大文件打包时看起来卡死
+      var entries = [];
+      function next(i) {
+        if (i >= total) {
+          zb.textContent = '压缩中…';
+          return Z.zip(entries, function (d, t) { zb.textContent = '压缩中 ' + d + '/' + t; }).then(function (u8) {
+            downloadBlob(new Blob([u8], { type: 'application/zip' }), '考勤处理结果.zip');
+            zb.textContent = orig; zb.disabled = false;
+          });
+        }
+        var f = r.files[i];
+        zb.textContent = '打包中 ' + (i + 1) + '/' + total;
+        return f.blob.arrayBuffer().then(function (ab) {
+          entries.push({ name: f.name, data: new Uint8Array(ab) });
+          return next(i + 1);
+        });
+      }
+      next(0).catch(function (e) { toast('打包失败：' + e.message, 'warn'); zb.textContent = orig; zb.disabled = false; });
     });
   }
 
