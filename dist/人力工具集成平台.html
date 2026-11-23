@@ -52,6 +52,23 @@
   .card-h h2{margin:0;font-size:15px;font-weight:600;display:flex;align-items:center;gap:9px}
   .card-h h2::before{content:"";width:3.5px;height:15px;border-radius:1px;background:var(--accent)}
   .card-h .note{font-size:12px;color:var(--ink-3);font-weight:400}
+  /* ---------- ⓘ 说明气泡：纯 CSS 悬浮，气泡不吃鼠标事件（避免闪烁），不用 title / help 光标 ---------- */
+  .itip{position:relative;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;
+        width:14px;height:14px;border-radius:50%;border:1.3px solid var(--ink-3);color:var(--ink-3);
+        font-size:10px;font-weight:700;line-height:1;font-style:normal;cursor:default;margin-left:3px;
+        flex:0 0 14px;user-select:none;transition:color .15s,border-color .15s}
+  .itip:hover{color:var(--accent);border-color:var(--accent)}
+  .itip::after{content:attr(data-tip);display:none;position:absolute;top:calc(100% + 8px);left:50%;
+        transform:translateX(-50%);width:236px;background:#26313c;color:#eef2f5;font-size:12px;
+        font-weight:400;line-height:1.7;text-align:left;white-space:normal;padding:9px 11px;border-radius:8px;
+        z-index:60;box-shadow:0 8px 24px rgba(20,30,40,.22);pointer-events:none;letter-spacing:0}
+  .itip::before{content:"";display:none;position:absolute;top:calc(100% + 3px);left:50%;
+        transform:translateX(-50%);border:5px solid transparent;border-top:0;border-bottom:5px solid #26313c;
+        z-index:61;pointer-events:none}
+  .itip:hover::after,.itip:hover::before{display:block}
+  /* 靠右的 ⓘ：气泡右对齐，避免溢出屏幕 */
+  .itip.align-r::after{left:auto;right:0;transform:none}
+  .itip.align-r::before{left:auto;right:8px;transform:none}
   /* ---------- 上传区 ---------- */
   .drop{border:1.5px dashed #c0c9d2;border-radius:10px;padding:34px 20px;text-align:center;cursor:pointer;
         background:#fafcfa;transition:.18s;color:var(--ink-2)}
@@ -219,34 +236,29 @@
   .att-zone .drop{padding:22px 14px}
   .att-zone .drop .d-main{font-size:13px}
   .att-file-meta{font-size:12px;color:var(--ink-3);line-height:1.6;word-break:break-all}
-  .att-panels{display:grid;grid-template-columns:1.25fr 1fr;gap:22px;align-items:start}
-  /* 配置区：两个小节标题 + 左侧紧凑字段网格 + 右侧浅绿剔除卡 */
+  .att-panels{display:flex;flex-direction:column;gap:20px}
+  /* 配置区：上下两块——上=岗位剔除（标题行带全选/全不选），下=字段映射 3 列网格 */
   .sec-h{font-size:12.5px;font-weight:600;color:var(--ink-2);display:flex;align-items:center;gap:8px;margin:0 0 14px}
   .sec-h::before{content:"";width:3px;height:13px;border-radius:1px;background:var(--accent)}
-  .rmap-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px 14px}
+  .rmap-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:13px 14px}
   .rmap-item{display:flex;flex-direction:column;gap:6px;min-width:0}
   .rmap-item>span{font-size:11.5px;color:var(--ink-3)}
   .rmap-item select{height:32px;font-size:12.5px}
   .rmap-foot{margin-top:14px;font-size:12px;color:var(--ink-3)}
   .rmap-foot b{color:var(--accent);font-weight:600}
-  .ex-card{border:1px solid #d8e8de;border-radius:10px;background:var(--accent-50);padding:14px 16px}
-  .ex-sub{font-size:11.5px;color:var(--ink-2);line-height:1.65;margin-bottom:13px}
   .ex-fld{display:flex;flex-direction:column;gap:6px;margin-bottom:13px}
   .ex-fld>span{font-size:11.5px;color:var(--ink-2);font-weight:500}
-  .ex-fld>span em{font-style:normal;color:var(--ink-3);font-weight:400}
-  .ex-sel{height:auto!important;min-height:96px;padding:4px 6px!important;padding-right:6px!important;
-          appearance:auto;background-image:none!important;font-size:12.5px;line-height:1.6}
-  .ex-sel option{padding:3px 6px;border-radius:4px}
-  .ex-sel option:checked{background:var(--accent)!important;color:#fff}
+  .ex-ops{margin-left:auto;display:flex;gap:14px}
+  .ex-tog{background:none;border:none;padding:0;font-size:12px;font-weight:500;color:var(--accent);cursor:pointer}
+  .ex-tog:hover{text-decoration:underline}
+  .ex-tog:disabled{color:var(--ink-3);cursor:not-allowed;text-decoration:none}
+  .ex-checks{display:flex;flex-wrap:wrap;gap:4px 18px;padding:2px 0;margin-bottom:13px}
+  .ex-check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);padding:4px 7px;border-radius:5px;
+            cursor:pointer;min-width:0;transition:background .12s}
+  .ex-check:hover{background:var(--accent-50)}
+  .ex-check input{width:14px;height:14px;margin:0;flex:0 0 14px;accent-color:var(--accent);cursor:pointer}
+  .ex-check>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ex-input{height:32px!important;font-size:12.5px}
-  .ex-chips-head{font-size:11.5px;color:var(--ink-3);margin:2px 0 8px}
-  .ex-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:110px;overflow:auto}
-  .ex-chip{display:inline-flex;align-items:center;gap:5px;max-width:100%;background:#fff;border:1px solid #c5dfd0;
-           color:var(--accent-dark);border-radius:14px;padding:3px 7px 3px 10px;font-size:11.5px;line-height:1.5}
-  .ex-chip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .ex-chip button{border:0;background:transparent;color:var(--ink-3);cursor:pointer;font-size:14px;line-height:1;padding:0 1px}
-  .ex-chip button:hover{color:var(--red)}
-  .ex-empty{font-size:11.5px;color:var(--ink-3)}
   .att-problems{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-2)}
   .att-prob-item{line-height:1.6}
   .att-prob-item.sev-error{color:var(--red)}
@@ -409,7 +421,6 @@
   }
   @media (max-width:1180px){
     .att-zones{grid-template-columns:1fr}
-    .att-panels{grid-template-columns:1fr}
     .ren-top{flex-direction:column}
     .ren-btns{grid-template-rows:none;grid-template-columns:1fr 1fr}
     .ren-btns .btn{min-height:44px}
@@ -498,7 +509,7 @@
     <div class="content hidden" id="viewSalary">
       <!-- 上传 -->
       <section class="card">
-        <div class="card-h"><h2>算薪表导入</h2><span class="note">支持 .xlsx / .xlsm / .xls，可多选（一个月多个月城）</span></div>
+        <div class="card-h"><h2>算薪表导入<i class="itip" data-tip="支持 .xlsx / .xlsm / .xls，可一次多选多个蝶城的算薪表；表头与数据起始行自动识别，详见用户手册。">i</i></h2></div>
         <div class="drop" id="drop">
           <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 16V8m0 0l-3.2 3.2M12 8l3.2 3.2"/><path d="M20 16.6A4.5 4.5 0 0017.5 8.5h-1.1A6 6 0 105 13.5"/>
@@ -511,7 +522,7 @@
 
       <!-- 关系配置 -->
       <section class="card">
-        <div class="card-h"><h2>关系配置</h2></div>
+        <div class="card-h"><h2>关系配置<i class="itip" data-tip="点开四张表核对列映射，一般无需改动；标红的未匹配项必须人工选好才能生成，详见用户手册。">i</i></h2></div>
         <div class="tiles" id="tiles">
           <button class="tile" data-panel="attendance">
             <span class="t-ico"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4M8 14h3M8 17.5h6"/></svg></span>
@@ -543,16 +554,15 @@
     <div class="content hidden" id="viewAttendance">
       <!-- 考勤文件导入 -->
       <section class="card">
-        <div class="card-h"><h2>考勤文件导入</h2><span id="attPeriod" class="note">上传考勤文件后自动按蝶城分组处理</span></div>
+        <div class="card-h"><h2>考勤文件导入<i class="itip" data-tip="分别上传外包 SHR、机师岗 RM 考勤和人员花名册，支持多蝶城一起传，详见用户手册。">i</i></h2><span id="attPeriod" class="note"></span></div>
         <div class="att-zones" id="attZones"></div>
       </section>
 
       <!-- 配置 -->
       <section class="card">
-        <div class="card-h"><h2>花名册字段映射与岗位剔除</h2><span class="note">上传外包考勤后自动列出岗位</span></div>
         <div class="att-panels">
-          <div id="rosterPanel"></div>
           <div id="machinePanel"></div>
+          <div id="rosterPanel"></div>
         </div>
       </section>
 
@@ -563,14 +573,14 @@
     <div class="content" id="viewAbsent">
       <!-- 三类文件导入 -->
       <section class="card">
-        <div class="card-h"><h2>导入文件</h2><span class="note">支持 .xlsx / .xls · 列名自动识别</span></div>
+        <div class="card-h"><h2>导入文件<i class="itip" data-tip="三个虚线框分别传考勤统计结果、人员花名册、上期反馈结果（可选）；列名自动识别，详见用户手册。">i</i></h2></div>
         <div class="att-zones" id="idleZones"></div>
       </section>
 
       <!-- 核对设置 -->
       <section class="card">
         <div class="card-h">
-          <h2>核对设置</h2>
+          <h2>核对设置<i class="itip" data-tip="设核算周期、上榜门槛（默认 7 天）和排除名单，再点开始核对，详见用户手册。">i</i></h2>
           <button class="btn btn-hd" id="btnIdleRun">开始核对</button>
         </div>
         <div class="idle-set">
@@ -587,7 +597,7 @@
               <em>天</em>
             </div>
           </div>
-          <div class="idle-f idle-f-grow"><span>排除名单（职位 / 姓名 / 工号，逗号分隔）</span><input type="text" id="idleExcl" value="机师岗"></div>
+          <div class="idle-f idle-f-grow"><span>排除名单<i class="itip" data-tip="填职位 / 姓名 / 工号，多个用逗号分隔；命中的人不参与核对，默认排除机师岗。">i</i></span><input type="text" id="idleExcl" value="机师岗"></div>
         </div>
         <div class="idle-chks">
           <label class="idle-chk"><input type="checkbox" id="idleChkScope" checked>只统计导入范围内的蝶城</label>
@@ -602,7 +612,7 @@
     <div class="content hidden" id="viewRename">
       <!-- 花名册 -->
       <section class="card">
-        <div class="card-h"><h2>人员花名册</h2></div>
+        <div class="card-h"><h2>人员花名册<i class="itip" data-tip="必传，需含员工编码 / 员工姓名 / 调度中心 / 员工项目四列；文件靠姓名或工号认人，详见用户手册。">i</i></h2></div>
         <div class="ren-top">
           <div class="ren-roster" id="renRosterBox"></div>
         </div>
@@ -611,13 +621,13 @@
 
       <!-- 资料模块 -->
       <section class="card">
-        <div class="card-h"><h2>资料上传</h2><span class="note">支持多文件或 zip 压缩包 · 拖入对应模块窗口自动归类</span></div>
+        <div class="card-h"><h2>资料上传<i class="itip" data-tip="把资料文件拖进对应模块窗口，支持一次多个或整个 zip 压缩包自动解包归类，详见用户手册。">i</i></h2></div>
         <div class="ren-rules">
           <div class="ren-rule">
             <div class="ren-rule-h">
-              <span class="ren-tpl">重命名规则</span>
+              <span class="ren-tpl">重命名规则<i class="itip" data-tip="工号-类型必须连在一起、固定在文件名最后（后缀之前），不可修改；自定义段加在它前面，详见用户手册。">i</i></span>
               <button type="button" class="btn-mini ren-add" id="renSegAdd" title="新增一段变量或固定文字">＋ 新增段</button>
-              <span class="ren-tpl-hint">工号-类型固定在最后面（后缀之前），不可修改</span>
+
             </div>
             <div id="renTplSegs"></div>
             <div class="ren-preview">完整规则预览：<span id="renTplPreview">—</span></div>
@@ -694,7 +704,7 @@
                   <li><b>② 人员花名册</b>——校验员工是否在职、在职月份区间。<b>必需列：员工编码（和 SHRid 比对）、员工姓名</b>；蝶城、入职日期、离职日期列建议带上。这份花名册和「考勤处理」「文件重命名」模块通用。</li>
                   <li><b>③ 上期反馈结果</b>（可选）——把上期本工具导出的《超7天无出勤异常明细-时间戳.xlsx》传回来，蝶城填过的反馈列会被自动读取：<b>异常原因</b>（如"请假"）、<b>请假开始 / 结束时间、请假天数</b>、是否已报离、备注。处理规则：已报离 / 离职 → 本期直接剔除备查；请假 → 按请假区间与本核算期的<b>重叠天数</b>从无出勤天数里扣掉；本期刚离职的人算出来的是"假异常"，也会剔除备查。</li>
                 </ol>
-                <p><b>第 2 步：核对字段映射</b>——三个文件卡片下方的下拉就是「表格列 ↔ 工具字段」的对应关系，自动猜的，猜错就手动改，改完立即生效。</p>
+                <p><b>第 2 步：核对字段映射</b>——三个文件卡片下方的下拉就是「表格列 ↔ 工具字段」的对应关系，自动猜的，猜错就手动改，改完立即生效。下方配置卡是<b>上下两块</b>：上面是「外包考勤岗位剔除」（复选框横排 + 全选 / 全不选 + 其他岗位名、员工姓名两个独立输入框），下面是「花名册字段映射」（3 列 × 2 行）。</p>
                 <p><b>第 3 步：设置核对参数</b>（页面上方「核对设置」区）——<b>核算周期</b>起止日期；<b>门槛天数</b>（无出勤 ≥ 几天上榜，默认 7）；<b>排除名单</b>（默认"机师岗"，命中的岗位不参与核对，可改成其他岗位名，多个用逗号隔开）。</p>
                 <p><b>第 4 步：点顶栏「开始核对」。</b></p>
               </div></div>
@@ -733,16 +743,16 @@
                   <li><b>蝶城 / 组织</b>——决定这个人归属哪个蝶城；「在职无出勤」名单就是按这一列筛的。</li>
                   <li><b>入职日期 / 离职日期</b>——判定员工在考勤周期内是否在职、在职区间。月中入职 / 离职的人只统计在职那段时间，不会因"全月没考勤"被误判。</li>
                 </ul>
-                <h5>外包考勤岗位剔除</h5>
-                <ul class="help-fields">
-                  <li><b>① 岗位下拉</b>（按住 Ctrl / Shift 可多选）——列出外包考勤里出现过的所有岗位；<b>名字里带「机师」的岗位会自动勾上</b>，取消勾选后不会被自动加回来。</li>
-                  <li><b>② 其他输入框</b>——补填下拉里没有的<b>岗位名或员工姓名都行</b>（系统先按岗位整行剔除、再按姓名剔除个人），多个用逗号、空格、顿号或分号隔开。</li>
-                  <li><b>③ 已剔除 chips</b>——实时显示当前生效的剔除项，点 × 可删。</li>
-                  <li>剔除<b>只作用于外包考勤</b>，机师岗 RM 文件不受影响。</li>
-                </ul>
-                <h5>计算口径（工具自动执行，建议了解）</h5>
-                <div class="help-tip">· 迟到 / 早退扣款：到点前后 <b>30 分钟容差</b>算正常；迟到 ≤5 分钟不扣、≤15 分钟扣 10 元、≤120 分钟扣 20 元、超过 120 分钟不扣（早退同理）。<br>· 打卡校准：签退比本班次下班晚 30 分钟以上时，若能对应到下一班次的签到就归还给下一班次；否则当无效打卡，签退记缺卡并连带重算旷工和计薪工时，不会出现负数早退。<br>· 计薪工时矩阵：按有效打卡次数折算天数（1 个班次每卡 0.5、2 个班次每卡 0.25、封顶 1 天）；迟到早退的卡和补卡都算有效卡；为 0 的格子留空填亮黄，末列有每人出勤天数汇总。<br>· 理论工时：外包取「理论工时」列；机师岗按班次时间计算，班次是「休」的留空并提示。</div>
-                <p><b>第 2 步：核对上传卡片下方的识别结果</b>（蝶城、行数、识别出的列），<b>第 3 步：点顶栏「开始生成」</b>。单个文件识别失败不会中断整批，跑完后统一在问题清单里看原因。</p>
+<h5>外包考勤岗位剔除</h5>
+<ul class="help-fields">
+  <li><b>① 剔除岗位（复选框清单）</b>——列出外包考勤里出现过的所有岗位，要给每个岗位打勾；名字里带「机师」的岗位会自动勾上，取消后不会自动加回来。小标题右侧有「全选」「全不选」两个按钮，可一键全勾 / 全清；岗位横排显示、自动换行。</li>
+  <li><b>② 其他岗位名</b>——补填清单里没有的岗位名，多个用逗号、空格、顿号或分号隔开；<b>只按岗位匹配</b>，命中后该岗位整行从外包考勤剔除。</li>
+  <li><b>③ 员工姓名</b>——按姓名剔除指定员工（不限制岗位），多个用逗号、空格、顿号或分号隔开；<b>只按姓名匹配</b>。两个输入框互相独立、规则清楚，不用再猜填的是岗位还是人。</li>
+  <li>剔除<b>只作用于外包考勤</b>，机师岗 RM 文件不受影响；勾选和输入都实时保存，重新打开工具还在。</li>
+</ul>
+<h5>计算口径（工具自动执行，建议了解）</h5>
+<div class="help-tip">· 迟到 / 早退扣款：到点前后 <b>30 分钟容差</b>算正常；迟到 ≤5 分钟不扣、≤15 分钟扣 10 元、≤120 分钟扣 20 元、超过 120 分钟不扣（早退同理）。<br>· 打卡校准：签退比本班次下班晚 30 分钟以上时，若能对应到下一班次的签到就归还给下一班次；否则当无效打卡，签退记缺卡并连带重算旷工和计薪工时，不会出现负数早退。<br>· 计薪工时矩阵：按有效打卡次数折算天数（1 个班次每卡 0.5、2 个班次每卡 0.25、封顶 1 天）；迟到早退的卡和补卡都算有效卡；为 0 的格子留空填亮黄，末列有每人出勤天数汇总。<br>· 理论工时：外包取「理论工时」列；机师岗按班次时间计算，班次是「休」的留空并提示。</div>
+<p><b>第 2 步：核对上传卡片下方的识别结果</b>（蝶城、行数、识别出的列），<b>第 3 步：点顶栏「开始生成」</b>。单个文件识别失败不会中断整批，跑完后统一在问题清单里看原因。</p>
               </div></div>
               <div class="part"><span class="pk">会有什么结果</span><div class="pv"><b>出几份文件，取决于你传了哪种考勤数据（不是每个蝶城固定两份）：</b><br>· 传了<b>外包 SHR</b> → 该蝶城出 <code>【考勤差异】蝶城起止日期.xlsx</code>（外包）——含 SHR员工考勤、考勤差异明细、迟到早退明细/统计，以及计薪工时、理论工时、打卡工时、工时比对四张矩阵（计薪工时里不满 1 天的淡黄、为 0 的留空填亮黄，末列有出勤天数汇总）；<br>· 传了<b>机师岗 RM</b> → 该蝶城出 <code>【考勤差异】蝶城机师岗起止日期.xlsx</code>（机师岗）——含 RM员工考勤、迟到早退明细/统计和同样四张工时矩阵；<br>· <b>只传了一种</b>就只出对应的那一份；<b>两种都传了</b>才是两份。<b>完全没有导入 RM 考勤也不会报错</b>，只是不生成机师岗文件。<br>· 无论几个蝶城，总会再出一份 <code>【考勤差异】M月迟到早退汇总.xlsx</code>（统计汇总+明细汇总+在职无出勤，带蝶城列）。<br>结果区分三张模块卡（外包考勤结果 / 机师岗RM考勤结果 / 数据汇总）：把鼠标<b>悬停在卡片中部的数字统计区</b>可查看这一组生成了哪些文件；「数据汇总」固定只有一个文件，不提供清单。识别失败的文件不导出，点「下载问题清单」看原因。</div></div>
             </section>
@@ -2338,8 +2348,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
 
   var DEFAULT_CONFIG = {
     rosterMap: { code: '', name: '', project: '', city: '', hire: '', leave: '' }, // 花名册列名映射
-    machineShifts: [],       // 下拉多选的剔除岗位（SHR 中这些岗位整行剔除）
-    machineExtraText: ''     // 「其他」输入框原文：岗位名或员工姓名，逗号/空格/顿号/分号分隔
+    machineShifts: [],        // 复选框勾选的剔除岗位（SHR 中这些岗位整行剔除）
+    machineExtraPosts: '',    // 「其他岗位名」输入框原文，逗号/空格/顿号/分号分隔
+    machineExtraNames: '',    // 「员工姓名」输入框原文，逗号/空格/顿号/分号分隔
+    machineExtraText: ''      // 旧版单一「其他」输入框（兼容旧配置，按岗位名+姓名都试）
   };
 
   /* ---------------- 花名册 ---------------- */
@@ -2761,13 +2773,18 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     return out;
   }
 
-  /* 外包考勤剔除判定：下拉选中的岗位按岗位匹配；「其他」里的词既能当岗位名也能当员工姓名 */
+  /* 外包考勤剔除判定（三个来源各自独立）：
+   *   machineShifts      复选框勾选的岗位        → 只按岗位匹配
+   *   machineExtraPosts  「其他岗位名」输入框    → 只按岗位匹配
+   *   machineExtraNames  「员工姓名」输入框      → 只按姓名匹配
+   *   machineExtraText   旧版单一「其他」输入框  → 兼容旧配置，岗位名与姓名都试 */
   function makeExcludeFilter(cfg) {
     var postSet = {}, nameSet = {};
     (cfg.machineShifts || []).forEach(function (p) { if (p) postSet[norm(p)] = 1; });
-    splitTokens(cfg.machineExtraText).forEach(function (t) {
-      postSet[norm(t)] = 1;   // 也能填下拉里没有的岗位名
-      nameSet[norm(t)] = 1;   // 也能填员工姓名
+    splitTokens(cfg.machineExtraPosts).forEach(function (t) { postSet[norm(t)] = 1; });
+    splitTokens(cfg.machineExtraNames).forEach(function (t) { nameSet[norm(t)] = 1; });
+    splitTokens(cfg.machineExtraText).forEach(function (t) {   // 旧配置兼容
+      postSet[norm(t)] = 1; nameSet[norm(t)] = 1;
     });
     return function (r) {
       if (r.post && postSet[norm(r.post)]) return true;
@@ -5791,7 +5808,9 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     if (!state.roster) { box.innerHTML = ''; return; }
     var hs = state.roster.headers;
     // 紧凑 2 列网格：标签在上、下拉在下，不再用表格和「说明」列
-    var h = '<div class="sec-h">花名册字段映射</div><div class="rmap-grid">';
+    var h = '<div class="sec-h">花名册字段映射' +
+      tip('六个字段分别对应花名册里的哪一列，工具自动识别；猜错用下拉改。各字段作用见用户手册。') +
+      '</div><div class="rmap-grid">';
     A.ROSTER_FIELDS.forEach(function (f) {
       var cur = state.cfg.rosterMap[f.key] || '';
       h += '<label class="rmap-item"><span>' + esc(f.label) + '</span>' +
@@ -5811,83 +5830,72 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     });
   }
 
-  /* 当前生效的剔除项：下拉岗位 + 「其他」输入框的词，归一化后去重 */
-  function exItems() {
-    var out = [], seen = {};
-    (state.cfg.machineShifts || []).forEach(function (p) {
-      var k = A.norm(p); if (!k || seen[k]) return;
-      seen[k] = 1; out.push({ v: p, t: 'post' });
-    });
-    A.splitTokens(state.cfg.machineExtraText).forEach(function (t) {
-      var k = A.norm(t); if (!k || seen[k]) return;
-      seen[k] = 1; out.push({ v: t, t: 'extra' });
-    });
-    return out;
+  /* ⓘ 说明气泡：标题旁的极简提示，详细规则见用户手册；纯 CSS 悬浮，气泡不吃鼠标事件 */
+  function tip(t, alignR) {
+    return '<i class="itip' + (alignR ? ' align-r' : '') + '" data-tip="' + esc(t) + '">i</i>';
   }
 
-  function renderChips() {
-    var box = $('#machineChips');
+  /* 岗位复选框 → 写回 cfg.machineShifts 并保存 */
+  function syncFromChecks() {
+    var box = $('#machinePanel');
     if (!box) return;
-    var items = exItems();
-    var head = $('#machineChipsHead');
-    if (head) head.textContent = '当前剔除 ' + items.length + ' 项';
-    box.innerHTML = items.length ? items.map(function (x) {
-      return '<span class="ex-chip"><span title="' + esc(x.v) + '">' + esc(x.v) + '</span>' +
-        '<button type="button" data-chip-t="' + x.t + '" data-chip-v="' + esc(x.v) + '" title="移除">×</button></span>';
-    }).join('') : '<span class="ex-empty">未设置，外包考勤全部保留</span>';
-    $$('[data-chip-t]', box).forEach(function (b) {
-      b.addEventListener('click', function () {
-        var v = b.dataset.chipV;
-        if (b.dataset.chipT === 'post') {
-          state.cfg.machineShifts = (state.cfg.machineShifts || []).filter(function (p) { return p !== v; });
-        } else {
-          var left = A.splitTokens(state.cfg.machineExtraText).filter(function (t) { return A.norm(t) !== A.norm(v); });
-          state.cfg.machineExtraText = left.join(', ');
-        }
-        saveCfg();
-        renderMachinePanel();
-      });
+    var cbs = $$('[data-post]', box);
+    state.cfg.machineShifts = cbs.filter(function (c) { return c.checked; })
+      .map(function (c) { return state.postOptions[Number(c.dataset.post)]; });
+    saveCfg();
+  }
+
+  function bindExtra(sel, key) {
+    var inp = $(sel, $('#machinePanel'));
+    if (inp) inp.addEventListener('input', function () {
+      state.cfg[key] = inp.value;
+      saveCfg();
     });
   }
 
+  /* 外包考勤岗位剔除：复选框横排（全选/全不选按钮在标题行）+ 两个独立输入框 */
   function renderMachinePanel() {
     var box = $('#machinePanel');
     if (!box) return;
     var selSet = {};
     (state.cfg.machineShifts || []).forEach(function (p) { selSet[p] = 1; });
-    var h = '<div class="sec-h">外包考勤岗位剔除</div>' +
-      '<div class="ex-card">' +
-        '<div class="ex-sub">选中的岗位、或「其他」里填写的岗位名 / 员工姓名，会从外包考勤中剔除；RM 考勤不受影响。</div>' +
-        '<label class="ex-fld"><span>① 剔除岗位 <em>（Ctrl / Shift 可多选）</em></span>' +
-          '<select id="machineSel" class="ex-sel" multiple size="5">' +
-          (state.postOptions.length
-            ? state.postOptions.map(function (p) {
-                return '<option value="' + esc(p) + '"' + (selSet[p] ? ' selected' : '') + '>' + esc(p) + '</option>';
-              }).join('')
-            : '<option value="" disabled>上传外包考勤后自动列出岗位</option>') +
-          '</select></label>' +
-        '<label class="ex-fld"><span>② 其他 <em>（岗位名或姓名，逗号 / 空格分隔）</em></span>' +
-          '<input id="machineExtra" class="ex-input" type="text" placeholder="如：机师岗, 维保机师 或 张三 李四" value="' +
-          esc(state.cfg.machineExtraText || '') + '"></label>' +
-        '<div class="ex-chips-head" id="machineChipsHead"></div>' +
-        '<div class="ex-chips" id="machineChips"></div>' +
+    var posts = state.postOptions;
+    var h = '<div class="sec-h">外包考勤岗位剔除' +
+        tip('勾选的岗位、以及下方两个输入框里的岗位名 / 员工姓名，会从外包考勤中剔除；机师岗 RM 不受影响。含「机师」的岗位会自动勾选。详细规则见用户手册。', true) +
+        '<span class="ex-ops">' +
+          '<button type="button" class="ex-tog" id="machineAll"' + (posts.length ? '' : ' disabled') + '>全选</button>' +
+          '<button type="button" class="ex-tog" id="machineNone"' + (posts.length ? '' : ' disabled') + '>全不选</button>' +
+        '</span></div>' +
+      '<div class="ex-checks" id="machineChecks">' +
+          (posts.length
+            ? posts.map(function (p, i) {
+                return '<label class="ex-check"><input type="checkbox" data-post="' + i + '"' +
+                  (selSet[p] ? ' checked' : '') + '><span title="' + esc(p) + '">' + esc(p) + '</span></label>';
+              }).join('') : '') +
+      '</div>' +
+        '<label class="ex-fld"><span>其他岗位名' + tip('补充清单里没有的岗位名，多个用逗号 / 空格 / 顿号分隔；按岗位整行剔除，详见用户手册。') + '</span>' +
+          '<input id="machineExtraPosts" class="ex-input" type="text" placeholder="如：布草主管、环境主管" value="' +
+          esc(state.cfg.machineExtraPosts || '') + '"></label>' +
+        '<label class="ex-fld"><span>员工姓名' + tip('按姓名剔除指定员工，多个用逗号 / 空格 / 顿号分隔；只影响外包考勤，详见用户手册。') + '</span>' +
+          '<input id="machineExtraNames" class="ex-input" type="text" placeholder="如：张三 李四" value="' +
+          esc(state.cfg.machineExtraNames || '') + '"></label>' +
       '</div>';
     box.innerHTML = h;
-    var sel = $('#machineSel', box);
-    if (sel) sel.addEventListener('change', function () {
-      state.cfg.machineShifts = Array.prototype.slice.call(sel.options)
-        .filter(function (o) { return o.selected && o.value; })
-        .map(function (o) { return o.value; });
-      saveCfg();
-      renderChips();
+    $$('[data-post]', box).forEach(function (cb) {
+      cb.addEventListener('change', syncFromChecks);
     });
-    var inp = $('#machineExtra', box);
-    if (inp) inp.addEventListener('input', function () {
-      state.cfg.machineExtraText = inp.value;
-      saveCfg();
-      renderChips();
+    var allBtn = $('#machineAll', box);
+    if (allBtn) allBtn.addEventListener('click', function () {
+      $$('[data-post]', box).forEach(function (cb) { cb.checked = true; });
+      syncFromChecks();
     });
-    renderChips();
+    var noneBtn = $('#machineNone', box);
+    if (noneBtn) noneBtn.addEventListener('click', function () {
+      $$('[data-post]', box).forEach(function (cb) { cb.checked = false; });
+      syncFromChecks();
+    });
+    bindExtra('#machineExtraPosts', 'machineExtraPosts');
+    bindExtra('#machineExtraNames', 'machineExtraNames');
   }
 
   function renderPeriod() {

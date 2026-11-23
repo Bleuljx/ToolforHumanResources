@@ -1,6 +1,6 @@
 /* ============================================================
  * att-app.js — 考勤处理模块界面
- * 三个上传区（外包SHR / RM / 花名册）+ 花名册映射 + 机师岗勾选 + 生成与下载
+ * 三个上传区（外包SHR / RM / 花名册）+ 花名册映射 + 外包考勤岗位剔除 + 生成与下载
  * ============================================================ */
 (function () {
   'use strict';
@@ -18,7 +18,8 @@
     roster: null,   // {id, name, buffer, wb, rows, headers}
     cfg: null,
     results: null,  // {files:[{name,blob,city}], cities, summary, problems}
-    machineCandidates: [],  // [{name, checked}]
+    postOptions: [],  // 外包考勤里出现的岗位名（下拉多选候选）
+    seenPosts: {},    // 已自动带入过「机师」岗位，避免用户取消后被重新加回
     rosterGuessed: false
   };
 
@@ -156,23 +157,25 @@
     catch (e) { state.roster.rows = []; }
   }
 
-  /* ---------------- 机师岗候选 ---------------- */
+  /* ---------------- 剔除岗位候选 ---------------- */
 
   function refreshMachine() {
     var posts = {}, order = [];
     state.shr.forEach(function (f) {
       (f.parsed.rows || []).forEach(function (r) {
         var p = r.post || '';
-        if (!p) return;
-        if (!posts[p]) { posts[p] = true; order.push(p); }
+        if (!p || posts[p]) return;
+        posts[p] = true; order.push(p);
       });
     });
-    var known = {};
-    state.machineCandidates.forEach(function (m) { known[m.name] = m.checked; });
-    state.machineCandidates = order.map(function (p) {
-      return { name: p, checked: p in known ? known[p] : p.indexOf('机师') >= 0 };
+    state.postOptions = order.sort(function (a, b) { return a.localeCompare(b, 'zh'); });
+    var shifts = state.cfg.machineShifts || (state.cfg.machineShifts = []);
+    // 首次出现的岗位名含「机师」时自动带入（用户手动取消后不再自动加回）
+    state.postOptions.forEach(function (p) {
+      if (state.seenPosts[p]) return;
+      state.seenPosts[p] = 1;
+      if (p.indexOf('机师') >= 0 && shifts.indexOf(p) < 0) shifts.push(p);
     });
-    state.cfg.machineShifts = state.machineCandidates.filter(function (m) { return m.checked; }).map(function (m) { return m.name; });
     saveCfg();
   }
 
@@ -236,22 +239,20 @@
   function renderRosterPanel() {
     var box = $('#rosterPanel');
     if (!box) return;
-    if (!state.roster) {
-      box.innerHTML = '';
-      return;
-    }
+    if (!state.roster) { box.innerHTML = ''; return; }
     var hs = state.roster.headers;
-    var h = '<table class="map-table"><thead><tr><th style="width:150px">花名册字段</th><th>对应列名</th><th>说明</th></tr></thead><tbody>';
+    // 紧凑 2 列网格：标签在上、下拉在下，不再用表格和「说明」列
+    var h = '<div class="sec-h">花名册字段映射' +
+      tip('六个字段分别对应花名册里的哪一列，工具自动识别；猜错用下拉改。各字段作用见用户手册。') +
+      '</div><div class="rmap-grid">';
     A.ROSTER_FIELDS.forEach(function (f) {
       var cur = state.cfg.rosterMap[f.key] || '';
-      h += '<tr><td><b>' + esc(f.label) + '</b></td>' +
-        '<td><select data-rmap="' + f.key + '">' +
-        '<option value="">（自动识别）</option>' +
+      h += '<label class="rmap-item"><span>' + esc(f.label) + '</span>' +
+        '<select data-rmap="' + f.key + '"><option value="">（自动识别）</option>' +
         hs.map(function (x) { return '<option value="' + esc(x) + '"' + (x === cur ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') +
-        '</select></td>' +
-        '<td class="col-tip">' + (f.key === 'code' ? '工号优先匹配，姓名兜底' : f.key === 'city' ? '按此字段归属蝶城（无出勤名单）' : f.key === 'hire' || f.key === 'leave' ? '用于判定考勤期内是否在职' : '') + '</td></tr>';
+        '</select></label>';
     });
-    h += '</tbody></table><div class="hint">已识别 ' + (state.roster.rows.length) + ' 名员工。</div>';
+    h += '</div><div class="rmap-foot">已识别 <b>' + state.roster.rows.length + '</b> 名员工</div>';
     box.innerHTML = h;
     $$('[data-rmap]', box).forEach(function (sel) {
       sel.addEventListener('change', function () {
@@ -263,26 +264,72 @@
     });
   }
 
+  /* ⓘ 说明气泡：标题旁的极简提示，详细规则见用户手册；纯 CSS 悬浮，气泡不吃鼠标事件 */
+  function tip(t, alignR) {
+    return '<i class="itip' + (alignR ? ' align-r' : '') + '" data-tip="' + esc(t) + '">i</i>';
+  }
+
+  /* 岗位复选框 → 写回 cfg.machineShifts 并保存 */
+  function syncFromChecks() {
+    var box = $('#machinePanel');
+    if (!box) return;
+    var cbs = $$('[data-post]', box);
+    state.cfg.machineShifts = cbs.filter(function (c) { return c.checked; })
+      .map(function (c) { return state.postOptions[Number(c.dataset.post)]; });
+    saveCfg();
+  }
+
+  function bindExtra(sel, key) {
+    var inp = $(sel, $('#machinePanel'));
+    if (inp) inp.addEventListener('input', function () {
+      state.cfg[key] = inp.value;
+      saveCfg();
+    });
+  }
+
+  /* 外包考勤岗位剔除：复选框横排（全选/全不选按钮在标题行）+ 两个独立输入框 */
   function renderMachinePanel() {
     var box = $('#machinePanel');
     if (!box) return;
-    if (!state.shr.length) {
-      box.innerHTML = '';
-      return;
-    }
-    var h = '<div class="ig-head"><b>机师岗名单</b><span>勾选的岗位从外包考勤剔除（RM 考勤不受影响）：</span></div><div class="ig-list">';
-    state.machineCandidates.forEach(function (m, i) {
-      h += '<label class="ig-item"><input type="checkbox" data-machine="' + i + '"' + (m.checked ? ' checked' : '') + '><span title="' + esc(m.name) + '">' + esc(m.name) + '</span></label>';
-    });
-    h += '</div>';
+    var selSet = {};
+    (state.cfg.machineShifts || []).forEach(function (p) { selSet[p] = 1; });
+    var posts = state.postOptions;
+    var h = '<div class="sec-h">外包考勤岗位剔除' +
+        tip('勾选的岗位、以及下方两个输入框里的岗位名 / 员工姓名，会从外包考勤中剔除；机师岗 RM 不受影响。含「机师」的岗位会自动勾选。详细规则见用户手册。', true) +
+        '<span class="ex-ops">' +
+          '<button type="button" class="ex-tog" id="machineAll"' + (posts.length ? '' : ' disabled') + '>全选</button>' +
+          '<button type="button" class="ex-tog" id="machineNone"' + (posts.length ? '' : ' disabled') + '>全不选</button>' +
+        '</span></div>' +
+      '<div class="ex-checks" id="machineChecks">' +
+          (posts.length
+            ? posts.map(function (p, i) {
+                return '<label class="ex-check"><input type="checkbox" data-post="' + i + '"' +
+                  (selSet[p] ? ' checked' : '') + '><span title="' + esc(p) + '">' + esc(p) + '</span></label>';
+              }).join('') : '') +
+      '</div>' +
+        '<label class="ex-fld"><span>其他岗位名' + tip('补充清单里没有的岗位名，多个用逗号 / 空格 / 顿号分隔；按岗位整行剔除，详见用户手册。') + '</span>' +
+          '<input id="machineExtraPosts" class="ex-input" type="text" placeholder="如：布草主管、环境主管" value="' +
+          esc(state.cfg.machineExtraPosts || '') + '"></label>' +
+        '<label class="ex-fld"><span>员工姓名' + tip('按姓名剔除指定员工，多个用逗号 / 空格 / 顿号分隔；只影响外包考勤，详见用户手册。') + '</span>' +
+          '<input id="machineExtraNames" class="ex-input" type="text" placeholder="如：张三 李四" value="' +
+          esc(state.cfg.machineExtraNames || '') + '"></label>' +
+      '</div>';
     box.innerHTML = h;
-    $$('[data-machine]', box).forEach(function (cb) {
-      cb.addEventListener('change', function () {
-        state.machineCandidates[Number(cb.dataset.machine)].checked = cb.checked;
-        state.cfg.machineShifts = state.machineCandidates.filter(function (m) { return m.checked; }).map(function (m) { return m.name; });
-        saveCfg();
-      });
+    $$('[data-post]', box).forEach(function (cb) {
+      cb.addEventListener('change', syncFromChecks);
     });
+    var allBtn = $('#machineAll', box);
+    if (allBtn) allBtn.addEventListener('click', function () {
+      $$('[data-post]', box).forEach(function (cb) { cb.checked = true; });
+      syncFromChecks();
+    });
+    var noneBtn = $('#machineNone', box);
+    if (noneBtn) noneBtn.addEventListener('click', function () {
+      $$('[data-post]', box).forEach(function (cb) { cb.checked = false; });
+      syncFromChecks();
+    });
+    bindExtra('#machineExtraPosts', 'machineExtraPosts');
+    bindExtra('#machineExtraNames', 'machineExtraNames');
   }
 
   function renderPeriod() {
@@ -347,7 +394,7 @@
     });
     var months = res.cities.map(function (c) { return c.monthLabel; }).filter(function (x) { return x; });
     var monthLabel = months.length ? months.sort()[0] : '';
-    specs.push({ name: '【考勤差异】' + monthLabel + '迟到早退汇总.xlsx', city: '', kind: 'summary', sheets: A.summarySpecs(res.summary) });
+    specs.push({ name: '【考勤差异】' + monthLabel + '差异数据汇总.xlsx', city: '', kind: 'summary', sheets: A.summarySpecs(res.summary, res.cities) });
 
     // 逐个生成：每个文件之间让出主线程，按钮显示进度；最终产物与原来 Promise.all 完全一致
     return specs.reduce(function (chain, sp, i) {
@@ -385,42 +432,71 @@
     var r = state.results;
     var h = '';
 
-    /* 每个蝶城一张结果卡（可能含外包/机师岗两个文件） */
-    r.cities.forEach(function (c) {
-      var cFiles = r.files.map(function (f, i) { return { f: f, i: i }; })
-        .filter(function (x) { return x.f.kind === 'city' && x.f.city === c.city; });
-      h += '<div class="result-card"><div class="rc-head">' +
-        '<div><span class="rc-city">' + esc(c.city) + '</span>' +
-        '<span class="rc-file">考勤期间 ' + esc(c.periodStart || '') + ' ~ ' + esc(c.periodEnd || '') + ' · ' + c.peopleCount + ' 人</span>' +
-        '</div><div class="rc-actions">' +
-        cFiles.map(function (x) {
-          return '<button class="btn" data-att-dl="' + x.i + '">' + (x.f.name.indexOf('机师岗') >= 0 ? '下载机师岗' : '下载外包') + '</button>';
-        }).join('') +
-        '</div></div>';
-      h += '<div class="rc-stats">' +
-        '<div><b>' + (c.shrRows.length + c.rmRows.length) + '</b><span>主表行数</span></div>' +
-        '<div><b>' + c.diffRows.length + '</b><span>考勤差异</span></div>' +
-        '<div><b>' + c.statRows.length + '</b><span>有迟到早退的人数</span></div>' +
-        '<div><b>' + roundDed(c.statRows) + '</b><span>扣款合计（元）</span></div>' +
-        '<div><b>' + c.noAttendance.length + '</b><span>在职无出勤</span></div>' +
-        '</div>';
-      h += '</div>';
-    });
-
-    /* 跨蝶城汇总 */
+    /* 三个模块的文件分组 */
+    var outFiles = [], rmFiles = [], sumFiles = [];
     r.files.forEach(function (f, i) {
-      if (f.kind !== 'summary') return;
-      h += '<div class="result-card"><div class="rc-head">' +
-        '<div><span class="rc-city">' + esc(f.name) + '</span><span class="rc-file">跨蝶城汇总</span></div>' +
-        '<div class="rc-actions"><button class="btn" data-att-dl="' + i + '">下载 xlsx</button></div></div>';
-      h += '<div class="rc-stats">' +
-        '<div><b>' + r.summary.statRows.length + '</b><span>统计行数</span></div>' +
-        '<div><b>' + r.summary.detailRows.length + '</b><span>迟到早退明细</span></div>' +
-        '<div><b>' + r.summary.noAttendance.length + '</b><span>在职无出勤</span></div>' +
-        '</div></div>';
+      var item = { f: f, i: i };
+      if (f.kind === 'summary') sumFiles.push(item);
+      else if (f.name.indexOf('机师岗') >= 0) rmFiles.push(item);
+      else outFiles.push(item);
     });
 
-    /* 数据统计看板 + 在职无出勤明细 */
+    /* 各组差异数：外包=shr差异、机师岗=rm差异 */
+    var outDiff = 0, rmDiff = 0, outStat = 0, rmStat = 0, outDed = 0, rmDed = 0;
+    r.cities.forEach(function (c) {
+      // 用 姓名|日期 集合区分差异行属于外包还是机师岗（避免逐行 O(n²) 扫描）
+      var shrKey = {}, rmKey = {};
+      (c.shrRows || []).forEach(function (s) { shrKey[s[0] + '|' + s[3]] = 1; });
+      (c.rmRows || []).forEach(function (s) { rmKey[s[1] + '|' + s[3]] = 1; });
+      (c.diffRows || []).forEach(function (x) {
+        var k = x[0] + '|' + x[3];
+        if (shrKey[k]) outDiff++;
+        else if (rmKey[k]) rmDiff++;
+      });
+      outStat += c.statRows.length;
+      rmStat += (c.statRowsRm || []).length;
+      outDed += roundDed(c.statRows);
+      rmDed += roundDed(c.statRowsRm || []);
+    });
+    outDed = Math.round(outDed * 100) / 100;
+    rmDed = Math.round(rmDed * 100) / 100;
+
+    function fileListTip(items) {
+      if (!items.length) return '';
+      return '<div class="filelist-tip">' + items.map(function (x) {
+        return '<div>' + esc(x.f.name) + '</div>';
+      }).join('') + '</div>';
+    }
+    /* 一张模块大卡：标题 + 下载按钮 + 数字统计区。
+       文件清单挂在「数字统计区」悬浮，不在标题下再显示「N 个文件」小字；
+       气泡本身不接收鼠标事件，避免盖住鼠标引起 显示/隐藏 来回闪烁。 */
+    function bigCard(title, items, stats, btnLabel, dlAttr, showList) {
+      var tip = showList ? fileListTip(items) : '';
+      h += '<div class="module-card"><div class="mc-head">' +
+        '<span class="mc-title">' + title + '</span>' +
+        '<button class="btn" ' + dlAttr + '>' + btnLabel + '</button></div>' +
+        '<div class="mc-stats' + (tip ? ' filelist-host' : '') + '">' + stats.map(function (s) {
+          return '<div class="mc-stat"><b' + (tip && s[2] ? ' class="mc-file-num"' : '') + '>' + s[0] +
+            '</b><span>' + s[1] + '</span></div>';
+        }).join('') + tip + '</div></div>';
+    }
+    h += '<div class="module-cards">';
+    bigCard('外包考勤结果', outFiles,
+      [['' + outDiff, '考勤差异数'], ['' + outFiles.length, '已生成文件数', true]],
+      '下载外包考勤', 'data-att-group="out"', true);
+    bigCard('机师岗RM考勤结果', rmFiles,
+      [['' + rmDiff, '考勤差异数'], ['' + rmFiles.length, '已生成文件数', true]],
+      '下载机师岗RM考勤', 'data-att-group="rm"', true);
+    var sumStat = r.summary || { statRows: [], detailRows: [], noAttendance: [] };
+    // 数据汇总固定只有 1 个文件，不再显示文件数，也不挂文件清单
+    bigCard('数据汇总', sumFiles,
+      [['' + sumStat.statRows.length, '统计行数'], ['' + sumStat.detailRows.length, '迟到早退明细'],
+       ['' + (sumStat.statRows.length + sumStat.detailRows.length + sumStat.noAttendance.length), '人员合计'],
+       ['' + A.statDed(sumStat.statRows), '扣款合计（元）'], ['' + sumStat.noAttendance.length, '在职无出勤']],
+      '下载汇总结果', 'data-att-group="sum"', false);
+    h += '</div>';
+
+    /* 在职无出勤明细（保持现状，放在三卡下面） */
     var T = { rows: 0, diff: 0, stat: 0, ded: 0, noAtt: 0 };
     r.cities.forEach(function (c) {
       T.rows += c.shrRows.length + c.rmRows.length;
@@ -435,16 +511,6 @@
       c.noAttendance.forEach(function (a) { noAttAll.push(a); });
     });
 
-    h += '<div class="result-card"><div class="rc-head"><div><span class="rc-city">数据统计</span>' +
-      '<span class="rc-file">全部蝶城汇总</span></div></div>';
-    h += '<div class="rc-stats">' +
-      '<div><b>' + T.rows + '</b><span>主表行数</span></div>' +
-      '<div><b>' + T.diff + '</b><span>考勤差异</span></div>' +
-      '<div><b>' + T.stat + '</b><span>有迟到早退的人数</span></div>' +
-      '<div><b>' + T.ded + '</b><span>扣款合计（元）</span></div>' +
-      '<div><b>' + T.noAtt + '</b><span>在职无出勤</span></div>' +
-      '</div>';
-
     h += '<div class="att-subhead"><div><span class="t">在职无出勤人员明细</span><span class="n">' +
       noAttAll.length + ' 人（花名册在册、考勤期内无任何考勤记录）</span></div>' +
       (noAttAll.length ? '<button class="btn btn-line" id="btnNoAtt">下载明细.xlsx</button>' : '') + '</div>';
@@ -458,7 +524,6 @@
     } else {
       h += '<div class="att-empty">无在职无出勤人员</div>';
     }
-    h += '</div>';
 
     /* 问题清单放最后（只显示系统计算产生的问题） */
     if (r.problems.length) {
@@ -484,6 +549,25 @@
         if (f) downloadBlob(f.blob, f.name);
       });
     });
+    // 三大模块批量下载（非 zip，逐个触发浏览器下载，按钮显示 1/N 进度）
+    $$('[data-att-group]', box).forEach(function (b) {
+      b.addEventListener('click', function () {
+        var grp = b.dataset.attGroup;
+        var items = grp === 'out' ? outFiles : grp === 'rm' ? rmFiles : sumFiles;
+        if (!items.length) { toast('该模块没有可下载的文件', 'warn'); return; }
+        toast('浏览器可能询问「是否允许多个文件下载」，请点允许，约 ' + items.length + ' 个文件', 'warn');
+        var orig = b.textContent, i = 0;
+        b.disabled = true;
+        function next() {
+          if (i >= items.length) { b.textContent = orig; b.disabled = false; return; }
+          b.textContent = '下载中 ' + (i + 1) + '/' + items.length;
+          downloadBlob(items[i].f.blob, items[i].f.name);
+          i++;
+          setTimeout(next, 120);   // 间隔触发，避免浏览器把连续下载当作误操作拦截
+        }
+        next();
+      });
+    });
     var pb = $('#btnAttProblems');
     if (pb) pb.addEventListener('click', function () { downloadProblems(r.problems); });
     var nb = $('#btnNoAtt');
@@ -503,9 +587,8 @@
   }
 
   function roundDed(statRows) {
-    var s = 0;
-    statRows.forEach(function (r) { s += r[12]; });
-    return Math.round(s * 100) / 100;
+    // 统一走 AttCore：自动兼容「蝶城统计表 14 列」与「汇总总表 15 列（带蝶城）」
+    return A.statDed(statRows);
   }
 
   function downloadProblems(problems) {
@@ -531,13 +614,27 @@
     if (zb) zb.addEventListener('click', function () {
       var r = state.results;
       if (!r || !r.files.length) { toast('请先点击「开始生成」', 'warn'); return; }
-      Promise.all(r.files.map(function (f) {
-        return f.blob.arrayBuffer().then(function (ab) { return { name: f.name, data: new Uint8Array(ab) }; });
-      })).then(function (entries) {
-        return Z.zip(entries);
-      }).then(function (u8) {
-        downloadBlob(new Blob([u8], { type: 'application/zip' }), '考勤处理结果.zip');
-      });
+      var orig = zb.textContent, done = 0, total = r.files.length;
+      zb.disabled = true;
+      zb.textContent = '打包中 0/' + total;
+      // 逐个读取+打包进度，避免大文件打包时看起来卡死
+      var entries = [];
+      function next(i) {
+        if (i >= total) {
+          zb.textContent = '压缩中…';
+          return Z.zip(entries, function (d, t) { zb.textContent = '压缩中 ' + d + '/' + t; }).then(function (u8) {
+            downloadBlob(new Blob([u8], { type: 'application/zip' }), '考勤处理结果.zip');
+            zb.textContent = orig; zb.disabled = false;
+          });
+        }
+        var f = r.files[i];
+        zb.textContent = '打包中 ' + (i + 1) + '/' + total;
+        return f.blob.arrayBuffer().then(function (ab) {
+          entries.push({ name: f.name, data: new Uint8Array(ab) });
+          return next(i + 1);
+        });
+      }
+      next(0).catch(function (e) { toast('打包失败：' + e.message, 'warn'); zb.textContent = orig; zb.disabled = false; });
     });
   }
 
