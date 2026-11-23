@@ -71,7 +71,7 @@ function zipContains(u8, str) {
   assert(doc.querySelectorAll('#renTplSegs .ren-del').length === 1 &&
     !!doc.querySelector('#renTplSegs .ren-seg-wrap .ren-del'), '删除键只在自定义段输入框右上角（小 ×）');
   assert(doc.querySelector('#renSegAdd').textContent.includes('新增段'), '新增段按钮在「重命名规则」标题后');
-  assert(doc.querySelector('.ren-rule-h .ren-tpl-hint').textContent.includes('工号-类型'), '红色提示：工号-类型固定在最后');
+  assert((doc.querySelector('.ren-rule-h .ren-tpl .itip')||{}).getAttribute?.('data-tip')?.includes?.('工号-类型'), '标题旁悬浮提示：工号-类型固定在最后');
   assert(!!doc.querySelector('#renTplPreview'), '完整规则预览存在');
   assert(doc.querySelector('#renExt').value === '', '后缀输入框默认留空（用原文件后缀）');
   assert(doc.querySelector('#renSep').value === '-', '连接符输入框默认 -');

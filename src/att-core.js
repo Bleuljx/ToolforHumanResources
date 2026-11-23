@@ -189,8 +189,10 @@
 
   var DEFAULT_CONFIG = {
     rosterMap: { code: '', name: '', project: '', city: '', hire: '', leave: '' }, // 花名册列名映射
-    machineShifts: [],       // 下拉多选的剔除岗位（SHR 中这些岗位整行剔除）
-    machineExtraText: ''     // 「其他」输入框原文：岗位名或员工姓名，逗号/空格/顿号/分号分隔
+    machineShifts: [],        // 复选框勾选的剔除岗位（SHR 中这些岗位整行剔除）
+    machineExtraPosts: '',    // 「其他岗位名」输入框原文，逗号/空格/顿号/分号分隔
+    machineExtraNames: '',    // 「员工姓名」输入框原文，逗号/空格/顿号/分号分隔
+    machineExtraText: ''      // 旧版单一「其他」输入框（兼容旧配置，按岗位名+姓名都试）
   };
 
   /* ---------------- 花名册 ---------------- */
@@ -612,13 +614,18 @@
     return out;
   }
 
-  /* 外包考勤剔除判定：下拉选中的岗位按岗位匹配；「其他」里的词既能当岗位名也能当员工姓名 */
+  /* 外包考勤剔除判定（三个来源各自独立）：
+   *   machineShifts      复选框勾选的岗位        → 只按岗位匹配
+   *   machineExtraPosts  「其他岗位名」输入框    → 只按岗位匹配
+   *   machineExtraNames  「员工姓名」输入框      → 只按姓名匹配
+   *   machineExtraText   旧版单一「其他」输入框  → 兼容旧配置，岗位名与姓名都试 */
   function makeExcludeFilter(cfg) {
     var postSet = {}, nameSet = {};
     (cfg.machineShifts || []).forEach(function (p) { if (p) postSet[norm(p)] = 1; });
-    splitTokens(cfg.machineExtraText).forEach(function (t) {
-      postSet[norm(t)] = 1;   // 也能填下拉里没有的岗位名
-      nameSet[norm(t)] = 1;   // 也能填员工姓名
+    splitTokens(cfg.machineExtraPosts).forEach(function (t) { postSet[norm(t)] = 1; });
+    splitTokens(cfg.machineExtraNames).forEach(function (t) { nameSet[norm(t)] = 1; });
+    splitTokens(cfg.machineExtraText).forEach(function (t) {   // 旧配置兼容
+      postSet[norm(t)] = 1; nameSet[norm(t)] = 1;
     });
     return function (r) {
       if (r.post && postSet[norm(r.post)]) return true;

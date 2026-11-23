@@ -17,6 +17,7 @@
 
 ```
 salary-tool/
+├── index.html          # GitHub Pages 直达入口（= dist 工具的副本，根目录必须有它，链接打开即是工具）
 ├── build.js            # 构建脚本：内联所有 JS/数据 → 单文件 HTML
 ├── src/
 │   ├── index.html      # 界面骨架 + 样式
@@ -54,5 +55,9 @@ python verify_v14.py && python verify_att.py && python verify_wide.py
 
 ## 使用
 
-直接双击 `dist/人力工具集成平台.html`（推荐 Chrome / Edge），完全离线运行，数据不出本机。
-首次使用请点左下角 **📖 用户手册**，内含四个模块的逐步操作指南和常见问题解答。
+- **本地**：直接双击 `dist/人力工具集成平台.html`（推荐 Chrome / Edge），完全离线运行，数据不出本机。
+- **在线**：本仓库已开启 GitHub Pages，访问 `https://<你的用户名>.github.io/ToolforHumanResources/` 即可直接使用（根目录 `index.html` 是直达入口）。工具本身仍在浏览器本地处理数据，不上传服务器。
+
+首次使用请点左下角 **📖 用户手册**（点击会在新标签页打开独立教程页），内含四个模块的逐步操作指南和常见问题解答。
+
+> 工具更新后：重新运行 `node build.js`，把生成的 `dist/人力工具集成平台.html` 同步覆盖到根目录 `index.html` 再提交即可。

@@ -242,7 +242,9 @@
     if (!state.roster) { box.innerHTML = ''; return; }
     var hs = state.roster.headers;
     // 紧凑 2 列网格：标签在上、下拉在下，不再用表格和「说明」列
-    var h = '<div class="sec-h">花名册字段映射</div><div class="rmap-grid">';
+    var h = '<div class="sec-h">花名册字段映射' +
+      tip('六个字段分别对应花名册里的哪一列，工具自动识别；猜错用下拉改。各字段作用见用户手册。') +
+      '</div><div class="rmap-grid">';
     A.ROSTER_FIELDS.forEach(function (f) {
       var cur = state.cfg.rosterMap[f.key] || '';
       h += '<label class="rmap-item"><span>' + esc(f.label) + '</span>' +
@@ -262,83 +264,72 @@
     });
   }
 
-  /* 当前生效的剔除项：下拉岗位 + 「其他」输入框的词，归一化后去重 */
-  function exItems() {
-    var out = [], seen = {};
-    (state.cfg.machineShifts || []).forEach(function (p) {
-      var k = A.norm(p); if (!k || seen[k]) return;
-      seen[k] = 1; out.push({ v: p, t: 'post' });
-    });
-    A.splitTokens(state.cfg.machineExtraText).forEach(function (t) {
-      var k = A.norm(t); if (!k || seen[k]) return;
-      seen[k] = 1; out.push({ v: t, t: 'extra' });
-    });
-    return out;
+  /* ⓘ 说明气泡：标题旁的极简提示，详细规则见用户手册；纯 CSS 悬浮，气泡不吃鼠标事件 */
+  function tip(t, alignR) {
+    return '<i class="itip' + (alignR ? ' align-r' : '') + '" data-tip="' + esc(t) + '">i</i>';
   }
 
-  function renderChips() {
-    var box = $('#machineChips');
+  /* 岗位复选框 → 写回 cfg.machineShifts 并保存 */
+  function syncFromChecks() {
+    var box = $('#machinePanel');
     if (!box) return;
-    var items = exItems();
-    var head = $('#machineChipsHead');
-    if (head) head.textContent = '当前剔除 ' + items.length + ' 项';
-    box.innerHTML = items.length ? items.map(function (x) {
-      return '<span class="ex-chip"><span title="' + esc(x.v) + '">' + esc(x.v) + '</span>' +
-        '<button type="button" data-chip-t="' + x.t + '" data-chip-v="' + esc(x.v) + '" title="移除">×</button></span>';
-    }).join('') : '<span class="ex-empty">未设置，外包考勤全部保留</span>';
-    $$('[data-chip-t]', box).forEach(function (b) {
-      b.addEventListener('click', function () {
-        var v = b.dataset.chipV;
-        if (b.dataset.chipT === 'post') {
-          state.cfg.machineShifts = (state.cfg.machineShifts || []).filter(function (p) { return p !== v; });
-        } else {
-          var left = A.splitTokens(state.cfg.machineExtraText).filter(function (t) { return A.norm(t) !== A.norm(v); });
-          state.cfg.machineExtraText = left.join(', ');
-        }
-        saveCfg();
-        renderMachinePanel();
-      });
+    var cbs = $$('[data-post]', box);
+    state.cfg.machineShifts = cbs.filter(function (c) { return c.checked; })
+      .map(function (c) { return state.postOptions[Number(c.dataset.post)]; });
+    saveCfg();
+  }
+
+  function bindExtra(sel, key) {
+    var inp = $(sel, $('#machinePanel'));
+    if (inp) inp.addEventListener('input', function () {
+      state.cfg[key] = inp.value;
+      saveCfg();
     });
   }
 
+  /* 外包考勤岗位剔除：复选框横排（全选/全不选按钮在标题行）+ 两个独立输入框 */
   function renderMachinePanel() {
     var box = $('#machinePanel');
     if (!box) return;
     var selSet = {};
     (state.cfg.machineShifts || []).forEach(function (p) { selSet[p] = 1; });
-    var h = '<div class="sec-h">外包考勤岗位剔除</div>' +
-      '<div class="ex-card">' +
-        '<div class="ex-sub">选中的岗位、或「其他」里填写的岗位名 / 员工姓名，会从外包考勤中剔除；RM 考勤不受影响。</div>' +
-        '<label class="ex-fld"><span>① 剔除岗位 <em>（Ctrl / Shift 可多选）</em></span>' +
-          '<select id="machineSel" class="ex-sel" multiple size="5">' +
-          (state.postOptions.length
-            ? state.postOptions.map(function (p) {
-                return '<option value="' + esc(p) + '"' + (selSet[p] ? ' selected' : '') + '>' + esc(p) + '</option>';
-              }).join('')
-            : '<option value="" disabled>上传外包考勤后自动列出岗位</option>') +
-          '</select></label>' +
-        '<label class="ex-fld"><span>② 其他 <em>（岗位名或姓名，逗号 / 空格分隔）</em></span>' +
-          '<input id="machineExtra" class="ex-input" type="text" placeholder="如：机师岗, 维保机师 或 张三 李四" value="' +
-          esc(state.cfg.machineExtraText || '') + '"></label>' +
-        '<div class="ex-chips-head" id="machineChipsHead"></div>' +
-        '<div class="ex-chips" id="machineChips"></div>' +
+    var posts = state.postOptions;
+    var h = '<div class="sec-h">外包考勤岗位剔除' +
+        tip('勾选的岗位、以及下方两个输入框里的岗位名 / 员工姓名，会从外包考勤中剔除；机师岗 RM 不受影响。含「机师」的岗位会自动勾选。详细规则见用户手册。', true) +
+        '<span class="ex-ops">' +
+          '<button type="button" class="ex-tog" id="machineAll"' + (posts.length ? '' : ' disabled') + '>全选</button>' +
+          '<button type="button" class="ex-tog" id="machineNone"' + (posts.length ? '' : ' disabled') + '>全不选</button>' +
+        '</span></div>' +
+      '<div class="ex-checks" id="machineChecks">' +
+          (posts.length
+            ? posts.map(function (p, i) {
+                return '<label class="ex-check"><input type="checkbox" data-post="' + i + '"' +
+                  (selSet[p] ? ' checked' : '') + '><span title="' + esc(p) + '">' + esc(p) + '</span></label>';
+              }).join('') : '') +
+      '</div>' +
+        '<label class="ex-fld"><span>其他岗位名' + tip('补充清单里没有的岗位名，多个用逗号 / 空格 / 顿号分隔；按岗位整行剔除，详见用户手册。') + '</span>' +
+          '<input id="machineExtraPosts" class="ex-input" type="text" placeholder="如：布草主管、环境主管" value="' +
+          esc(state.cfg.machineExtraPosts || '') + '"></label>' +
+        '<label class="ex-fld"><span>员工姓名' + tip('按姓名剔除指定员工，多个用逗号 / 空格 / 顿号分隔；只影响外包考勤，详见用户手册。') + '</span>' +
+          '<input id="machineExtraNames" class="ex-input" type="text" placeholder="如：张三 李四" value="' +
+          esc(state.cfg.machineExtraNames || '') + '"></label>' +
       '</div>';
     box.innerHTML = h;
-    var sel = $('#machineSel', box);
-    if (sel) sel.addEventListener('change', function () {
-      state.cfg.machineShifts = Array.prototype.slice.call(sel.options)
-        .filter(function (o) { return o.selected && o.value; })
-        .map(function (o) { return o.value; });
-      saveCfg();
-      renderChips();
+    $$('[data-post]', box).forEach(function (cb) {
+      cb.addEventListener('change', syncFromChecks);
     });
-    var inp = $('#machineExtra', box);
-    if (inp) inp.addEventListener('input', function () {
-      state.cfg.machineExtraText = inp.value;
-      saveCfg();
-      renderChips();
+    var allBtn = $('#machineAll', box);
+    if (allBtn) allBtn.addEventListener('click', function () {
+      $$('[data-post]', box).forEach(function (cb) { cb.checked = true; });
+      syncFromChecks();
     });
-    renderChips();
+    var noneBtn = $('#machineNone', box);
+    if (noneBtn) noneBtn.addEventListener('click', function () {
+      $$('[data-post]', box).forEach(function (cb) { cb.checked = false; });
+      syncFromChecks();
+    });
+    bindExtra('#machineExtraPosts', 'machineExtraPosts');
+    bindExtra('#machineExtraNames', 'machineExtraNames');
   }
 
   function renderPeriod() {
