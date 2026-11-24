@@ -259,6 +259,15 @@
   .ex-check input{width:14px;height:14px;margin:0;flex:0 0 14px;accent-color:var(--accent);cursor:pointer}
   .ex-check>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ex-input{height:32px!important;font-size:12.5px}
+  .att-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px}
+  .att-tab{border:1px solid #cfe3d6;background:#fff;color:#217346;border-radius:14px;padding:3px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .att-tab.on{background:#217346;border-color:#217346;color:#fff}
+  .sub-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 0}
+  .subtabs{display:flex;gap:24px;border-bottom:2px solid #e3ebe6}
+  .subtab{background:none;border:none;padding:8px 2px;font-size:14.5px;color:#66757c;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-2px}
+  .subtab .n{font-size:12px;color:#93a39a;margin-left:5px;font-weight:400}
+  .subtab.on{color:#217346;font-weight:600;border-bottom-color:#217346}
+  .subpane{padding:12px 0 0}
   .att-problems{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-2)}
   .att-prob-item{line-height:1.6}
   .att-prob-item.sev-error{color:var(--red)}
@@ -750,6 +759,14 @@
   <li><b>③ 员工姓名</b>——按姓名剔除指定员工（不限制岗位），多个用逗号、空格、顿号或分号隔开；<b>只按姓名匹配</b>。两个输入框互相独立、规则清楚，不用再猜填的是岗位还是人。</li>
   <li>剔除<b>只作用于外包考勤</b>，机师岗 RM 文件不受影响；勾选和输入都实时保存，重新打开工具还在。</li>
 </ul>
+<h5>异常清单分类与「打卡项目与系统不一致」</h5>
+<ul class="help-fields">
+  <li>结果区三张模块卡下面是一组<b>网页标签页</b>：「在职无出勤人员明细」和「打卡项目与系统不一致」，点标题切换下面的表格；右侧「下载明细.xlsx」把两个标签一起导出成一个文件，内部按标题分两张子表。</li>
+  <li><b>打卡项目与系统不一致</b>只查外包SHR：逐人比对考勤表「项目」与花名册「项目」，两边去掉前后空格后不同才算，一边没填也算；花名册找不到的人同样会报（系统项目留空）；机师岗RM与被剔除人员不参与。同一人有多条打卡记录时会逐条检查，只要任一条与花名册不一致就上报（任一条不一致即上报）；明细8列：员工编码 / 蝶城 / 打卡项目 / 员工姓名 / 系统项目 / 岗位 / 不一致时间段 / 不一致天数。异常按「一个人 × 一个打卡项目 × 一段连续日期」拆成多行：每行只写一个打卡项目和一个时间段区间，直接看出哪段时间在哪个项目；打卡项目为空的行单独成行、该列留空，日期仍计入时间段；末列「不一致天数」是该段实际不一致的自然日数。同一人中途换了项目又换回来，也会拆成多行分别列出。</li>
+  <li>问题清单只剩两类：<b>人员匹配异常</b>（考勤里的人在花名册找不到）与<b>计算异常</b>（识别失败、理论工时算不了等），导出「考勤问题清单.xlsx」一类一表。</li>
+  <li>每蝶城外包文件与汇总总表里也有「打卡项目与系统不一致」表（8列同上，同样按人×项目×区间拆行）。</li>
+</ul>
+
 <h5>计算口径（工具自动执行，建议了解）</h5>
 <div class="help-tip">· 迟到 / 早退扣款：到点前后 <b>30 分钟容差</b>算正常；迟到 ≤5 分钟不扣、≤15 分钟扣 10 元、≤120 分钟扣 20 元、超过 120 分钟不扣（早退同理）。<br>· 打卡校准：签退比本班次下班晚 30 分钟以上时，若能对应到下一班次的签到就归还给下一班次；否则当无效打卡，签退记缺卡并连带重算旷工和计薪工时，不会出现负数早退。<br>· 计薪工时矩阵：按有效打卡次数折算天数（1 个班次每卡 0.5、2 个班次每卡 0.25、封顶 1 天）；迟到早退的卡和补卡都算有效卡；为 0 的格子留空填亮黄，末列有每人出勤天数汇总。<br>· 理论工时：外包取「理论工时」列；机师岗按班次时间计算，班次是「休」的留空并提示。</div>
 <p><b>第 2 步：核对上传卡片下方的识别结果</b>（蝶城、行数、识别出的列），<b>第 3 步：点顶栏「开始生成」</b>。单个文件识别失败不会中断整批，跑完后统一在问题清单里看原因。</p>

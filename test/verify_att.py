@@ -17,8 +17,8 @@ def check(cond, msg):
 
 wb = openpyxl.load_workbook(CITY)
 check(wb.sheetnames == ["SHR员工考勤", "考勤差异明细", "迟到早退明细", "迟到早退统计",
-                        "计薪工时", "理论工时", "打卡工时", "工时比对"],
-      "外包文件 8 张工作表齐全（无 RM）：" + ",".join(wb.sheetnames))
+                        "计薪工时", "理论工时", "打卡工时", "工时比对", "打卡项目与系统不一致"],
+      "外包文件 9 张工作表齐全（无 RM）：" + ",".join(wb.sheetnames))
 wbrm = openpyxl.load_workbook(RMF)
 check(wbrm.sheetnames == ["RM员工考勤", "迟到早退明细", "迟到早退统计", "计薪工时", "理论工时", "打卡工时", "工时比对"],
       "机师岗文件 7 张工作表（主表+迟到早退明细/统计+4张工时矩阵）：" + ",".join(wbrm.sheetnames))
@@ -201,7 +201,7 @@ check("孙十" in rm3_names and "钱七" not in rm3_names and "周九" not in rm
 
 # ---------- 汇总总表 ----------
 wb2 = openpyxl.load_workbook(SUM)
-check(wb2.sheetnames == ["迟到早退统计汇总", "迟到早退明细汇总", "在职无出勤", "各蝶城差异汇总"], "汇总 4 张工作表（新增各蝶城差异汇总）")
+check(wb2.sheetnames == ["迟到早退统计汇总", "迟到早退明细汇总", "在职无出勤", "打卡项目与系统不一致", "各蝶城差异汇总"], "汇总 5 张工作表（含项目不一致）")
 ws = wb2["迟到早退统计汇总"]
 check(ws.cell(row=1, column=1).value == "蝶城" and [ws.cell(row=1, column=c).value for c in (4, 5)] == ["项目", "岗位"], "统计汇总带蝶城列+项目/岗位")
 check(ws.cell(row=2, column=1).value == "钟公庙蝶城", "统计汇总蝶城值正确")
@@ -222,5 +222,18 @@ ws = wb2["在职无出勤"]
 check(ws.cell(row=2, column=2).value == "吴十", "在职无出勤=吴十")
 check(ws.cell(row=2, column=1).value == "钟公庙蝶城", "无出勤名单带蝶城")
 
+
+# ---------- 打卡项目与系统不一致 ----------
+wsp = wb["打卡项目与系统不一致"]
+check([wsp.cell(row=1, column=c).value for c in range(1, 9)] == ["员工编码", "蝶城", "打卡项目", "员工姓名", "系统项目", "岗位", "不一致时间段", "不一致天数"],
+      "city pm header 8col")
+pm_rows = [[wsp.cell(row=r, column=c).value for c in range(1, 9)] for r in range(2, wsp.max_row + 1)]
+zl = next((r for r in pm_rows if r[3] == "\u8d75\u516d"), None)
+check(zl is not None and zl[1] == "\u949f\u516c\u5e99\u8776\u57ce" and zl[2] == "\u949f\u516c\u5e99\u82b1\u56ed" and zl[4] == "\u949f\u516c\u5e99\u82b1\u56edB\u533a" and zl[6] and isinstance(zl[7], (int, float)) and zl[7] >= 1,
+      "zhao-liu pm row 8col correct")
+check(len(pm_rows) == 1, "pm rows == 1 (got %d)" % len(pm_rows))
+wsp2 = wb2["打卡项目与系统不一致"]
+pm2 = [[wsp2.cell(row=r, column=c).value for c in range(1, 9)] for r in range(2, wsp2.max_row + 1)]
+check(any(r[3] == "\u8d75\u516d" and r[1] == "\u949f\u516c\u5e99\u8776\u57ce" for r in pm2), "sum pm sheet has zhao-liu with city")
 print("FAILED:", failed) if failed else print("ALL_VERIFY_PASSED")
 sys.exit(1 if failed else 0)

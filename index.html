@@ -259,6 +259,15 @@
   .ex-check input{width:14px;height:14px;margin:0;flex:0 0 14px;accent-color:var(--accent);cursor:pointer}
   .ex-check>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .ex-input{height:32px!important;font-size:12.5px}
+  .att-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 10px}
+  .att-tab{border:1px solid #cfe3d6;background:#fff;color:#217346;border-radius:14px;padding:3px 14px;font-size:12.5px;cursor:pointer;font-family:inherit}
+  .att-tab.on{background:#217346;border-color:#217346;color:#fff}
+  .sub-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 0}
+  .subtabs{display:flex;gap:24px;border-bottom:2px solid #e3ebe6}
+  .subtab{background:none;border:none;padding:8px 2px;font-size:14.5px;color:#66757c;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;margin-bottom:-2px}
+  .subtab .n{font-size:12px;color:#93a39a;margin-left:5px;font-weight:400}
+  .subtab.on{color:#217346;font-weight:600;border-bottom-color:#217346}
+  .subpane{padding:12px 0 0}
   .att-problems{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--ink-2)}
   .att-prob-item{line-height:1.6}
   .att-prob-item.sev-error{color:var(--red)}
@@ -750,6 +759,14 @@
   <li><b>③ 员工姓名</b>——按姓名剔除指定员工（不限制岗位），多个用逗号、空格、顿号或分号隔开；<b>只按姓名匹配</b>。两个输入框互相独立、规则清楚，不用再猜填的是岗位还是人。</li>
   <li>剔除<b>只作用于外包考勤</b>，机师岗 RM 文件不受影响；勾选和输入都实时保存，重新打开工具还在。</li>
 </ul>
+<h5>异常清单分类与「打卡项目与系统不一致」</h5>
+<ul class="help-fields">
+  <li>结果区三张模块卡下面是一组<b>网页标签页</b>：「在职无出勤人员明细」和「打卡项目与系统不一致」，点标题切换下面的表格；右侧「下载明细.xlsx」把两个标签一起导出成一个文件，内部按标题分两张子表。</li>
+  <li><b>打卡项目与系统不一致</b>只查外包SHR：逐人比对考勤表「项目」与花名册「项目」，两边去掉前后空格后不同才算，一边没填也算；花名册找不到的人同样会报（系统项目留空）；机师岗RM与被剔除人员不参与。同一人有多条打卡记录时会逐条检查，只要任一条与花名册不一致就上报（任一条不一致即上报）；明细8列：员工编码 / 蝶城 / 打卡项目 / 员工姓名 / 系统项目 / 岗位 / 不一致时间段 / 不一致天数。异常按「一个人 × 一个打卡项目 × 一段连续日期」拆成多行：每行只写一个打卡项目和一个时间段区间，直接看出哪段时间在哪个项目；打卡项目为空的行单独成行、该列留空，日期仍计入时间段；末列「不一致天数」是该段实际不一致的自然日数。同一人中途换了项目又换回来，也会拆成多行分别列出。</li>
+  <li>问题清单只剩两类：<b>人员匹配异常</b>（考勤里的人在花名册找不到）与<b>计算异常</b>（识别失败、理论工时算不了等），导出「考勤问题清单.xlsx」一类一表。</li>
+  <li>每蝶城外包文件与汇总总表里也有「打卡项目与系统不一致」表（8列同上，同样按人×项目×区间拆行）。</li>
+</ul>
+
 <h5>计算口径（工具自动执行，建议了解）</h5>
 <div class="help-tip">· 迟到 / 早退扣款：到点前后 <b>30 分钟容差</b>算正常；迟到 ≤5 分钟不扣、≤15 分钟扣 10 元、≤120 分钟扣 20 元、超过 120 分钟不扣（早退同理）。<br>· 打卡校准：签退比本班次下班晚 30 分钟以上时，若能对应到下一班次的签到就归还给下一班次；否则当无效打卡，签退记缺卡并连带重算旷工和计薪工时，不会出现负数早退。<br>· 计薪工时矩阵：按有效打卡次数折算天数（1 个班次每卡 0.5、2 个班次每卡 0.25、封顶 1 天）；迟到早退的卡和补卡都算有效卡；为 0 的格子留空填亮黄，末列有每人出勤天数汇总。<br>· 理论工时：外包取「理论工时」列；机师岗按班次时间计算，班次是「休」的留空并提示。</div>
 <p><b>第 2 步：核对上传卡片下方的识别结果</b>（蝶城、行数、识别出的列），<b>第 3 步：点顶栏「开始生成」</b>。单个文件识别失败不会中断整批，跑完后统一在问题清单里看原因。</p>
@@ -2617,8 +2634,10 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   function processAll(files, rosterRows, cfg) {
     cfg = cfg || {};
     var problems = [];
-    function addProblem(city, sheet, name, msg, sev) {
-      problems.push({ city: city || '', sheet: sheet || '', name: name || '', msg: msg, sev: sev || 'warn' });
+    function addProblem(city, sheet, name, msg, sev, cat) {
+      var o = { city: city || '', sheet: sheet || '', name: name || '', msg: msg, sev: sev || 'warn', cat: cat || '计算异常' };
+      problems.push(o);
+      return o;
     }
 
     var rosterIdx = buildRosterIndex(rosterRows || []);
@@ -2793,6 +2812,75 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     };
   }
 
+  /* v3.16: one row per (person, punch project, continuous date segment) */
+  function mismatchSegs(dates) {
+    var uniq = {}, list = [];
+    dates.forEach(function (d) {
+      var s = toStr(d);
+      if (s && !uniq[s]) { uniq[s] = true; list.push(s); }
+    });
+    if (!list.length) return [];
+    list.sort();
+    var days = list.map(function (s) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      return m ? { y: +m[1], s: s, n: Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 } : null;
+    });
+    if (!days.every(function (x) { return x; })) {
+      return list.map(function (s) { return { text: s, count: 1, start: s }; });
+    }
+    var sameYear = days.every(function (x) { return x.y === days[0].y; });
+    function fd(x) { return sameYear ? x.s.slice(5) : x.s; }
+    var segs = [], i = 0;
+    while (i < days.length) {
+      var j = i;
+      while (j + 1 < days.length && days[j + 1].n === days[j].n + 1) j++;
+      segs.push({ text: i === j ? fd(days[i]) : fd(days[i]) + '~' + fd(days[j]), count: j - i + 1, start: days[i].s });
+      i = j + 1;
+    }
+    return segs;
+  }
+  function fmtMismatchPeriods(dates) {
+    return mismatchSegs(dates).map(function (g) { return g.text; }).join('\u3001');
+  }
+  function collectProjMismatch(shrRows, city, isExcluded, rosterOf) {
+    var seen = {}, order = [];
+    shrRows.forEach(function (r) {
+      if (isExcluded(r)) return;
+      var k = norm(r.code) + '|' + norm(r.name);
+      if (!seen[k]) {
+        var m = rosterOf(r);
+        seen[k] = { r: r, sysProj: m ? toStr(m.row.project) : '', groups: {} };
+        order.push(k);
+      }
+      var s = seen[k];
+      var punch = toStr(r.project);
+      if (punch === s.sysProj) return;
+      if (!s.groups[punch]) s.groups[punch] = [];
+      s.groups[punch].push(toStr(r.date));
+    });
+    var rows = [];
+    order.forEach(function (k) {
+      var s = seen[k];
+      Object.keys(s.groups).forEach(function (punch) {
+        var segs = mismatchSegs(s.groups[punch]);
+        if (!segs.length) segs = [{ text: '', count: s.groups[punch].length, start: '' }];
+        segs.forEach(function (g) {
+          rows.push([toStr(s.r.code), city, punch, toStr(s.r.name), s.sysProj, toStr(s.r.post), g.text, g.count]);
+        });
+      });
+    });
+    rows.sort(function (a, b) {
+      var n = toStr(a[3]).localeCompare(toStr(b[3]), 'zh');
+      if (n) return n;
+      var d = toStr(a[6]).localeCompare(toStr(b[6]));
+      if (d) return d;
+      var pa = toStr(a[2]), pb = toStr(b[2]);
+      if (!pa && pb) return 1;
+      if (pa && !pb) return -1;
+      return pa.localeCompare(pb, 'zh');
+    });
+    return rows;
+  }
   function processCity(city, shrRowsIn, rmRowsIn, rosterIdx, cfg, addProblem, globalAttIdx) {
     var isExcluded = makeExcludeFilter(cfg);
 
@@ -2819,9 +2907,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
         matchCache[key] = m || null;
         if (!m) {
           addProblem(city, r.type === 'shr' ? 'SHR员工考勤' : 'RM考勤', r.name,
-            '花名册中未匹配到该员工（编码 ' + (r.code || '空') + '、蝶城 ' + (r.city || city || '未知') + '），「项目」留空、蝶城用源表值', 'warn');
+            '花名册中未匹配到该员工（编码 ' + (r.code || '空') + '、蝶城 ' + (r.city || city || '未知') + '），「项目」留空、蝶城用源表值', 'warn', '人员匹配异常');
         } else if (m.conf === 'name-fuzzy' || m.conf === 'name-city-fuzzy') {
-          addProblem(city, '', r.name, '花名册按姓名模糊匹配（相似度≥0.85），请人工核对：' + m.row.name + ' / ' + m.row.city + ' / ' + m.row.project, 'warn');
+          addProblem(city, '', r.name, '花名册按姓名模糊匹配（相似度≥0.85），请人工核对：' + m.row.name + ' / ' + m.row.city + ' / ' + m.row.project, 'warn', '人员匹配异常');
         }
       }
       return matchCache[key];
@@ -2833,6 +2921,9 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       return r.city || city;
     }
 
+    /* --- 项目不一致（仅外包 SHR）：打卡项目 vs 花名册战图项目 --- */
+    /* 两边去前后空格后不同才算；任一边为空也算；匹配不到花名册的人也参与（系统项目留空）；被剔除的人不参与 */
+    var projRows = collectProjMismatch(shrRowsIn, city, isExcluded, rosterOf);
     /* --- 打卡校准（SHR + RM 统一）：同一天同人按班次开始排序 --- */
     var dayGroups = {};
     allRows.forEach(function (r) {
@@ -3127,6 +3218,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       payMatrix: payMatrix, theoryMatrix: theoryMatrix, matrixDays: days,
       rmPayMatrix: rmMat.pay, rmTheoryMatrix: rmMat.theory, rmPunchMatrix: rmMat.punch,
       noAttendance: noAtt,
+      projMismatch: projRows,
       peopleCount: people.length,
       fileNameShr: '【考勤差异】' + city + periodLabel + '.xlsx',
       fileNameRm: '【考勤差异】' + city + '机师岗' + periodLabel + '.xlsx'
@@ -3158,13 +3250,14 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   var SUMMARY_DETAIL_HEAD = ['蝶城'].concat(UNI_HEAD);
 
   function buildSummary(cities) {
-    var statRows = [], detailRows = [], noAtt = [];
+    var statRows = [], detailRows = [], noAtt = [], projAll = [];
     cities.forEach(function (c) {
       c.statRows.forEach(function (r) { statRows.push([c.city].concat(r)); });
       c.detailRows.forEach(function (r) { detailRows.push([c.city].concat(r)); });
       c.noAttendance.forEach(function (r) { noAtt.push(r); });
+      (c.projMismatch || []).forEach(function (r) { projAll.push(r); });
     });
-    return { statRows: statRows, detailRows: detailRows, noAttendance: noAtt };
+    return { statRows: statRows, detailRows: detailRows, noAttendance: noAtt, projMismatch: projAll };
   }
 
   /* 统计行的 10 个数值列（迟到<=5/<=15/15-120、早退同、合计迟到/早退/总次数、扣款合计）。
@@ -3333,6 +3426,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       specs.push(matrixSpec('理论工时', c.matrixDays, c.theoryMatrix));
       specs.push(matrixSpec('打卡工时', c.matrixDays, [], { tall: true }));
       specs.push(matrixSpec('工时比对', c.matrixDays, []));
+      specs.push({
+        name: '打卡项目与系统不一致',
+        header: ['员工编码', '蝶城', '打卡项目', '员工姓名', '系统项目', '岗位', '不一致时间段', '不一致天数'],
+        rows: c.projMismatch || [], headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
+        cols: [14, 14, 16, 10, 16, 12, 14, 10]
+      });
       files.push({ name: c.fileNameShr, sheets: specs });
     }
     if (c.rmRows.length) {
@@ -3395,6 +3494,12 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
       rows: s.noAttendance, headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
       cols: [12, 10, 12, 16, 11, 11]
     });
+    specs.push({
+      name: '打卡项目与系统不一致',
+      header: ['员工编码', '蝶城', '打卡项目', '员工姓名', '系统项目', '岗位', '不一致时间段', '不一致天数'],
+      rows: s.projMismatch || [], headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
+      cols: [14, 14, 16, 10, 16, 12, 14, 10]
+    });
 
     /* 各蝶城差异数据汇总：差异总数 / 迟到总数 / 早退总数 / 迟到早退扣款总数 */
     if (cities && cities.length) {
@@ -3438,6 +3543,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
     isDiff: isDiff,
     splitTokens: splitTokens,
     makeExcludeFilter: makeExcludeFilter,
+    collectProjMismatch: collectProjMismatch,
     inferFileCityFor: function (parsed, rosterRows) {
       return inferFileCity(parsed, buildRosterIndex(rosterRows || []));
     },
@@ -6062,7 +6168,7 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
       '下载汇总结果', 'data-att-group="sum"', false);
     h += '</div>';
 
-    /* 在职无出勤明细（保持现状，放在三卡下面） */
+    /* 在职无出勤 + 打卡项目与系统不一致：网页标签页切换，下载合并成一个文件按标题分 sheet */
     var T = { rows: 0, diff: 0, stat: 0, ded: 0, noAtt: 0 };
     r.cities.forEach(function (c) {
       T.rows += c.shrRows.length + c.rmRows.length;
@@ -6076,10 +6182,17 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     r.cities.forEach(function (c) {
       c.noAttendance.forEach(function (a) { noAttAll.push(a); });
     });
+    var projAll = [];
+    r.cities.forEach(function (c) {
+      (c.projMismatch || []).forEach(function (a) { projAll.push(a); });
+    });
 
-    h += '<div class="att-subhead"><div><span class="t">在职无出勤人员明细</span><span class="n">' +
-      noAttAll.length + ' 人（花名册在册、考勤期内无任何考勤记录）</span></div>' +
-      (noAttAll.length ? '<button class="btn btn-line" id="btnNoAtt">下载明细.xlsx</button>' : '') + '</div>';
+    h += '<div class="sub-head"><div class="subtabs">' +
+      '<button type="button" class="subtab on" data-subtab="0">在职无出勤人员明细<span class="n">' + noAttAll.length + ' 人</span></button>' +
+      '<button type="button" class="subtab" data-subtab="1">打卡项目与系统不一致<span class="n">' + projAll.length + ' 条</span></button>' +
+      '</div>' +
+      ((noAttAll.length || projAll.length) ? '<button class="btn btn-line" id="btnNoAtt">下载明细.xlsx</button>' : '') + '</div>';
+    h += '<div class="subpane" data-subpane="0">';
     if (noAttAll.length) {
       h += '<table class="att-table"><thead><tr>' +
         '<th>蝶城</th><th>姓名</th><th>员工编码</th><th>项目</th><th>入职日期</th><th>离职日期</th></tr></thead><tbody>' +
@@ -6090,21 +6203,53 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
     } else {
       h += '<div class="att-empty">无在职无出勤人员</div>';
     }
+    h += '</div>';
+    h += '<div class="subpane" data-subpane="1" style="display:none">';
+    if (projAll.length) {
+      h += '<table class="att-table"><thead><tr>' +
+        '<th>员工编码</th><th>蝶城</th><th>打卡项目</th><th>员工姓名</th><th>系统项目</th><th>岗位</th><th>不一致时间段</th><th>不一致天数</th></tr></thead><tbody>' +
+        projAll.map(function (a) {
+          return '<tr><td>' + esc(a[0]) + '</td><td>' + esc(a[1]) + '</td><td>' + esc(a[2] || '—') + '</td><td>' +
+            esc(a[3] || '—') + '</td><td>' + esc(a[4] || '—') + '</td><td>' + esc(a[5] || '—') + '</td><td>' + esc(a[6] || '—') + '</td><td>' + esc(a[7] == null ? '—' : a[7]) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    } else {
+      h += '<div class="att-empty">无打卡项目与系统不一致人员</div>';
+    }
+    h += '</div>';
 
-    /* 问题清单放最后（只显示系统计算产生的问题） */
+    /* 问题清单放最后（只显示系统计算产生的问题），按类目标签页切换 */
     if (r.problems.length) {
+      var CATS = ['人员匹配异常', '计算异常'];
+      var groups = CATS.map(function (cat) {
+        return { cat: cat, items: r.problems.filter(function (p) { return (p.cat || '计算异常') === cat; }) };
+      }).filter(function (g) { return g.items.length; });
+      var probItem = function (p) {
+        return '<div class="att-prob-item sev-' + p.sev + '">' +
+          '<span class="badge ' + (p.sev === 'error' ? 'bad' : p.sev === 'warn' ? 'warn' : 'gray') + '">' +
+          (p.sev === 'error' ? '错误' : p.sev === 'warn' ? '提示' : '信息') + '</span> ' +
+          (p.city ? '[' + esc(p.city) + '] ' : '') + esc(p.msg) + '</div>';
+      };
       h += '<div class="result-card"><div class="rc-head"><div><span class="rc-city">问题清单</span>' +
         '<span class="rc-file">' + r.problems.length + ' 条</span></div>' +
-        '<div class="rc-actions"><button class="btn btn-line" id="btnAttProblems">下载问题清单.xlsx</button></div></div>' +
-        '<div class="att-problems">' +
-        r.problems.slice(0, 30).map(function (p) {
-          return '<div class="att-prob-item sev-' + p.sev + '">' +
-            '<span class="badge ' + (p.sev === 'error' ? 'bad' : p.sev === 'warn' ? 'warn' : 'gray') + '">' +
-            (p.sev === 'error' ? '错误' : p.sev === 'warn' ? '提示' : '信息') + '</span> ' +
-            (p.city ? '[' + esc(p.city) + '] ' : '') + esc(p.msg) + '</div>';
-        }).join('') +
-        (r.problems.length > 30 ? '<div class="att-prob-item">…其余 ' + (r.problems.length - 30) + ' 条见下载的问题清单</div>' : '') +
-        '</div></div>';
+        '<div class="rc-actions"><button class="btn btn-line" id="btnAttProblems">下载问题清单.xlsx</button></div></div>';
+      if (groups.length > 1) {
+        h += '<div class="att-tabs">' + groups.map(function (g, i) {
+          return '<button type="button" class="att-tab' + (i === 0 ? ' on' : '') + '" data-atttab="' + i + '">' +
+            esc(g.cat) + ' ' + g.items.length + '</button>';
+        }).join('') + '</div>';
+        h += groups.map(function (g, i) {
+          return '<div class="att-problems att-pane" data-paneproblems="' + i + '"' + (i ? ' style="display:none"' : '') + '>' +
+            g.items.slice(0, 30).map(probItem).join('') +
+            (g.items.length > 30 ? '<div class="att-prob-item">…其余 ' + (g.items.length - 30) + ' 条见下载的问题清单</div>' : '') +
+            '</div>';
+        }).join('');
+      } else {
+        h += '<div class="att-problems">' +
+          groups[0].items.slice(0, 30).map(probItem).join('') +
+          (groups[0].items.length > 30 ? '<div class="att-prob-item">…其余 ' + (groups[0].items.length - 30) + ' 条见下载的问题清单</div>' : '') +
+          '</div>';
+      }
+      h += '</div>';
     }
 
     box.innerHTML = h;
@@ -6134,6 +6279,21 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
         next();
       });
     });
+    $$('.att-tab', box).forEach(function (t) {
+      t.addEventListener('click', function () {
+        var idx = t.dataset.atttab;
+        $$('.att-tab', box).forEach(function (x) { x.classList.toggle('on', x === t); });
+        $$('.att-pane', box).forEach(function (p) { p.style.display = p.dataset.paneproblems === idx ? '' : 'none'; });
+      });
+    });
+
+    $$('.subtab', box).forEach(function (t) {
+      t.addEventListener('click', function () {
+        var idx = t.dataset.subtab;
+        $$('.subtab', box).forEach(function (x) { x.classList.toggle('on', x === t); });
+        $$('.subpane', box).forEach(function (p) { p.style.display = p.dataset.subpane === idx ? '' : 'none'; });
+      });
+    });
     var pb = $('#btnAttProblems');
     if (pb) pb.addEventListener('click', function () { downloadProblems(r.problems); });
     var nb = $('#btnNoAtt');
@@ -6141,10 +6301,15 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
       W.build({
         zipImpl: Z,
         sheets: [{
-          name: '在职无出勤',
+          name: '在职无出勤人员明细',
           header: ['蝶城', '姓名', '员工编码', '项目', '入职日期', '离职日期'],
           rows: noAttAll,
           cols: [22, 10, 14, 16, 12, 12], headerStyle: 5, dataStyle: 2
+        }, {
+          name: '打卡项目与系统不一致',
+          header: ['员工编码', '蝶城', '打卡项目', '员工姓名', '系统项目', '岗位', '不一致时间段', '不一致天数'],
+          rows: projAll,
+          cols: [14, 14, 16, 10, 16, 12, 14, 10], headerStyle: 5, dataStyle: 2
         }]
       }).then(function (bytes) {
         downloadBlob(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '在职无出勤人员明细.xlsx');
@@ -6159,15 +6324,16 @@ window.SALARY_OPTIONS={"headers":["员工编码","员工姓名","绑定核算任
 
   function downloadProblems(problems) {
     var LV = { error: '错误', warn: '提示', info: '信息' };
-    W.build({
-      zipImpl: Z,
-      sheets: [{
-        name: '问题清单',
-        header: ['蝶城', '工作表', '员工姓名', '说明', '级别'],
-        rows: problems.map(function (p) { return [p.city, p.sheet, p.name, p.msg, LV[p.sev] || p.sev]; }),
+    var CATS = ['人员匹配异常', '计算异常'];
+    var sheets = CATS.map(function (cat) {
+      var rows = problems.filter(function (p) { return (p.cat || '计算异常') === cat; });
+      return {
+        name: cat, header: ['蝶城', '工作表', '员工姓名', '说明', '级别'],
+        rows: rows.map(function (p) { return [p.city, p.sheet, p.name, p.msg, LV[p.sev] || p.sev]; }),
         cols: [12, 14, 10, 80, 8], headerStyle: 5, dataStyle: 2
-      }]
-    }).then(function (bytes) {
+      };
+    });
+    W.build({ zipImpl: Z, sheets: sheets }).then(function (bytes) {
       downloadBlob(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '考勤问题清单.xlsx');
     });
   }

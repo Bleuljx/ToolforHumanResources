@@ -458,8 +458,10 @@
   function processAll(files, rosterRows, cfg) {
     cfg = cfg || {};
     var problems = [];
-    function addProblem(city, sheet, name, msg, sev) {
-      problems.push({ city: city || '', sheet: sheet || '', name: name || '', msg: msg, sev: sev || 'warn' });
+    function addProblem(city, sheet, name, msg, sev, cat) {
+      var o = { city: city || '', sheet: sheet || '', name: name || '', msg: msg, sev: sev || 'warn', cat: cat || '计算异常' };
+      problems.push(o);
+      return o;
     }
 
     var rosterIdx = buildRosterIndex(rosterRows || []);
@@ -634,6 +636,75 @@
     };
   }
 
+  /* v3.16: one row per (person, punch project, continuous date segment) */
+  function mismatchSegs(dates) {
+    var uniq = {}, list = [];
+    dates.forEach(function (d) {
+      var s = toStr(d);
+      if (s && !uniq[s]) { uniq[s] = true; list.push(s); }
+    });
+    if (!list.length) return [];
+    list.sort();
+    var days = list.map(function (s) {
+      var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+      return m ? { y: +m[1], s: s, n: Date.UTC(+m[1], +m[2] - 1, +m[3]) / 86400000 } : null;
+    });
+    if (!days.every(function (x) { return x; })) {
+      return list.map(function (s) { return { text: s, count: 1, start: s }; });
+    }
+    var sameYear = days.every(function (x) { return x.y === days[0].y; });
+    function fd(x) { return sameYear ? x.s.slice(5) : x.s; }
+    var segs = [], i = 0;
+    while (i < days.length) {
+      var j = i;
+      while (j + 1 < days.length && days[j + 1].n === days[j].n + 1) j++;
+      segs.push({ text: i === j ? fd(days[i]) : fd(days[i]) + '~' + fd(days[j]), count: j - i + 1, start: days[i].s });
+      i = j + 1;
+    }
+    return segs;
+  }
+  function fmtMismatchPeriods(dates) {
+    return mismatchSegs(dates).map(function (g) { return g.text; }).join('\u3001');
+  }
+  function collectProjMismatch(shrRows, city, isExcluded, rosterOf) {
+    var seen = {}, order = [];
+    shrRows.forEach(function (r) {
+      if (isExcluded(r)) return;
+      var k = norm(r.code) + '|' + norm(r.name);
+      if (!seen[k]) {
+        var m = rosterOf(r);
+        seen[k] = { r: r, sysProj: m ? toStr(m.row.project) : '', groups: {} };
+        order.push(k);
+      }
+      var s = seen[k];
+      var punch = toStr(r.project);
+      if (punch === s.sysProj) return;
+      if (!s.groups[punch]) s.groups[punch] = [];
+      s.groups[punch].push(toStr(r.date));
+    });
+    var rows = [];
+    order.forEach(function (k) {
+      var s = seen[k];
+      Object.keys(s.groups).forEach(function (punch) {
+        var segs = mismatchSegs(s.groups[punch]);
+        if (!segs.length) segs = [{ text: '', count: s.groups[punch].length, start: '' }];
+        segs.forEach(function (g) {
+          rows.push([toStr(s.r.code), city, punch, toStr(s.r.name), s.sysProj, toStr(s.r.post), g.text, g.count]);
+        });
+      });
+    });
+    rows.sort(function (a, b) {
+      var n = toStr(a[3]).localeCompare(toStr(b[3]), 'zh');
+      if (n) return n;
+      var d = toStr(a[6]).localeCompare(toStr(b[6]));
+      if (d) return d;
+      var pa = toStr(a[2]), pb = toStr(b[2]);
+      if (!pa && pb) return 1;
+      if (pa && !pb) return -1;
+      return pa.localeCompare(pb, 'zh');
+    });
+    return rows;
+  }
   function processCity(city, shrRowsIn, rmRowsIn, rosterIdx, cfg, addProblem, globalAttIdx) {
     var isExcluded = makeExcludeFilter(cfg);
 
@@ -660,9 +731,9 @@
         matchCache[key] = m || null;
         if (!m) {
           addProblem(city, r.type === 'shr' ? 'SHR员工考勤' : 'RM考勤', r.name,
-            '花名册中未匹配到该员工（编码 ' + (r.code || '空') + '、蝶城 ' + (r.city || city || '未知') + '），「项目」留空、蝶城用源表值', 'warn');
+            '花名册中未匹配到该员工（编码 ' + (r.code || '空') + '、蝶城 ' + (r.city || city || '未知') + '），「项目」留空、蝶城用源表值', 'warn', '人员匹配异常');
         } else if (m.conf === 'name-fuzzy' || m.conf === 'name-city-fuzzy') {
-          addProblem(city, '', r.name, '花名册按姓名模糊匹配（相似度≥0.85），请人工核对：' + m.row.name + ' / ' + m.row.city + ' / ' + m.row.project, 'warn');
+          addProblem(city, '', r.name, '花名册按姓名模糊匹配（相似度≥0.85），请人工核对：' + m.row.name + ' / ' + m.row.city + ' / ' + m.row.project, 'warn', '人员匹配异常');
         }
       }
       return matchCache[key];
@@ -674,6 +745,9 @@
       return r.city || city;
     }
 
+    /* --- 项目不一致（仅外包 SHR）：打卡项目 vs 花名册战图项目 --- */
+    /* 两边去前后空格后不同才算；任一边为空也算；匹配不到花名册的人也参与（系统项目留空）；被剔除的人不参与 */
+    var projRows = collectProjMismatch(shrRowsIn, city, isExcluded, rosterOf);
     /* --- 打卡校准（SHR + RM 统一）：同一天同人按班次开始排序 --- */
     var dayGroups = {};
     allRows.forEach(function (r) {
@@ -968,6 +1042,7 @@
       payMatrix: payMatrix, theoryMatrix: theoryMatrix, matrixDays: days,
       rmPayMatrix: rmMat.pay, rmTheoryMatrix: rmMat.theory, rmPunchMatrix: rmMat.punch,
       noAttendance: noAtt,
+      projMismatch: projRows,
       peopleCount: people.length,
       fileNameShr: '【考勤差异】' + city + periodLabel + '.xlsx',
       fileNameRm: '【考勤差异】' + city + '机师岗' + periodLabel + '.xlsx'
@@ -999,13 +1074,14 @@
   var SUMMARY_DETAIL_HEAD = ['蝶城'].concat(UNI_HEAD);
 
   function buildSummary(cities) {
-    var statRows = [], detailRows = [], noAtt = [];
+    var statRows = [], detailRows = [], noAtt = [], projAll = [];
     cities.forEach(function (c) {
       c.statRows.forEach(function (r) { statRows.push([c.city].concat(r)); });
       c.detailRows.forEach(function (r) { detailRows.push([c.city].concat(r)); });
       c.noAttendance.forEach(function (r) { noAtt.push(r); });
+      (c.projMismatch || []).forEach(function (r) { projAll.push(r); });
     });
-    return { statRows: statRows, detailRows: detailRows, noAttendance: noAtt };
+    return { statRows: statRows, detailRows: detailRows, noAttendance: noAtt, projMismatch: projAll };
   }
 
   /* 统计行的 10 个数值列（迟到<=5/<=15/15-120、早退同、合计迟到/早退/总次数、扣款合计）。
@@ -1174,6 +1250,12 @@
       specs.push(matrixSpec('理论工时', c.matrixDays, c.theoryMatrix));
       specs.push(matrixSpec('打卡工时', c.matrixDays, [], { tall: true }));
       specs.push(matrixSpec('工时比对', c.matrixDays, []));
+      specs.push({
+        name: '打卡项目与系统不一致',
+        header: ['员工编码', '蝶城', '打卡项目', '员工姓名', '系统项目', '岗位', '不一致时间段', '不一致天数'],
+        rows: c.projMismatch || [], headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
+        cols: [14, 14, 16, 10, 16, 12, 14, 10]
+      });
       files.push({ name: c.fileNameShr, sheets: specs });
     }
     if (c.rmRows.length) {
@@ -1236,6 +1318,12 @@
       rows: s.noAttendance, headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
       cols: [12, 10, 12, 16, 11, 11]
     });
+    specs.push({
+      name: '打卡项目与系统不一致',
+      header: ['员工编码', '蝶城', '打卡项目', '员工姓名', '系统项目', '岗位', '不一致时间段', '不一致天数'],
+      rows: s.projMismatch || [], headerStyle: 7, dataStyle: 2, freeze: { x: 0, y: 1 }, autoFilter: true,
+      cols: [14, 14, 16, 10, 16, 12, 14, 10]
+    });
 
     /* 各蝶城差异数据汇总：差异总数 / 迟到总数 / 早退总数 / 迟到早退扣款总数 */
     if (cities && cities.length) {
@@ -1279,6 +1367,7 @@
     isDiff: isDiff,
     splitTokens: splitTokens,
     makeExcludeFilter: makeExcludeFilter,
+    collectProjMismatch: collectProjMismatch,
     inferFileCityFor: function (parsed, rosterRows) {
       return inferFileCity(parsed, buildRosterIndex(rosterRows || []));
     },

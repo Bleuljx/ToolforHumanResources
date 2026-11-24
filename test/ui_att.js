@@ -82,6 +82,48 @@ async function saveBlob(d) {
   assert(/花名册字段映射/.test(vc) && /外包考勤岗位剔除/.test(vc), 'two sec-h titles');
   assert(/1fr\) minmax\(0,1fr\) minmax\(0,1\.6fr\)/.test(html), 'card ratio');
   const C = win.AttCore;
+  // proj mismatch: one row per person x punch project x continuous date segment
+  {
+    const sys = '\u5609\u5174\u9038\u54c1\u798f\u90b8';
+    const pA = '\u5609\u5174\u6d77\u5b81\u6f6e\u542f\u516c\u5bd3';
+    const pB = '\u5176\u4ed6\u9879\u76ee';
+    const rows = [
+      { type: 'shr', code: 'WYA', name: '\u6d4b\u8bd5\u7532', post: '\u5de1\u4fdd\u5c97', project: sys, city: 'X', date: '2026-11-01' },
+      { type: 'shr', code: 'WYA', name: '\u6d4b\u8bd5\u7532', post: '\u5de1\u4fdd\u5c97', project: pA, city: 'X', date: '2026-11-05' },
+      { type: 'shr', code: 'WYB', name: '\u6d4b\u8bd5\u4e59', post: '\u5de1\u4fdd\u5c97', project: sys, city: 'X' },
+      { type: 'shr', code: 'WYC', name: '\u6d4b\u8bd5\u4e19', post: '\u5de1\u4fdd\u5c97', project: '\u6f6e\u542f\u516c\u5bd3', city: 'X', date: '2026-11-01' },
+      { type: 'shr', code: 'WYC', name: '\u6d4b\u8bd5\u4e19', post: '\u5de1\u4fdd\u5c97', project: '\u6f6e\u542f\u516c\u5bd3', city: 'X', date: '2026-11-05' },
+      { type: 'shr', code: 'WYC', name: '\u6d4b\u8bd5\u4e19', post: '\u5de1\u4fdd\u5c97', project: pB, city: 'X', date: '2026-11-06' }
+    ];
+    const out = C.collectProjMismatch(rows, 'X', () => false, () => ({ row: { project: sys } }));
+    assert(out.length === 4, 'proj mismatch: 4 rows (jia 1 + bing 3), got ' + out.length);
+    assert(out.every(r => r.length === 8), 'proj mismatch rows have 8 cols');
+    const jia = out.filter(r => r[3] === '\u6d4b\u8bd5\u7532');
+    assert(jia.length === 1 && jia[0][2] === pA && jia[0][6] === '11-05' && jia[0][7] === 1, 'jia single row');
+    const bing = out.filter(r => r[3] === '\u6d4b\u8bd5\u4e19');
+    assert(bing.length === 3, 'bing split into 3 rows');
+    assert(bing.filter(r => r[2] === '\u6f6e\u542f\u516c\u5bd3').length === 2, 'same project kept in 2 segments');
+    assert(bing.some(r => r[2] === pB && r[6] === '11-06' && r[7] === 1), 'other project own row');
+    assert(bing.every(r => r[7] === 1), 'each segment 1 day');
+    assert(!out.some(r => r[3] === '\u6d4b\u8bd5\u4e59'), 'fully-consistent person not reported');
+  }
+  // continuous segment merge + empty punch project own row
+  {
+    const sys = '\u7cfb\u7edf\u9879\u76ee';
+    const pA = '\u9879\u76eeA';
+    const rows2 = [
+      { type: 'shr', code: 'WYD', name: '\u6d4b\u8bd5\u4e01', post: '\u5de1\u4fdd\u5c97', project: pA, city: 'X', date: '2026-11-05' },
+      { type: 'shr', code: 'WYD', name: '\u6d4b\u8bd5\u4e01', post: '\u5de1\u4fdd\u5c97', project: pA, city: 'X', date: '2026-11-06' },
+      { type: 'shr', code: 'WYD', name: '\u6d4b\u8bd5\u4e01', post: '\u5de1\u4fdd\u5c97', project: pA, city: 'X', date: '2026-11-07' },
+      { type: 'shr', code: 'WYD', name: '\u6d4b\u8bd5\u4e01', post: '\u5de1\u4fdd\u5c97', project: '', city: 'X', date: '2026-11-10' }
+    ];
+    const out2 = C.collectProjMismatch(rows2, 'X', () => false, () => ({ row: { project: sys } }));
+    assert(out2.length === 2, 'seg+empty: 2 rows, got ' + out2.length);
+    const seg = out2.find(r => r[2] === pA);
+    assert(seg && seg[6] === '11-05~11-07' && seg[7] === 3, 'continuous seg merged with 3 days');
+    const empty = out2.find(r => r[2] === '');
+    assert(empty && empty[6] === '11-10' && empty[7] === 1, 'empty punch project own row with blank cell');
+  }
   assert(C.splitTokens('机师岗, 张三 李四、王五；赵六').length === 5, 'split 5');
   assert(C.makeExcludeFilter({ machineExtraNames: '张三 李四' })({ post: '保洁岗', name: '李四' }) === true, 'name box hits name');
   assert(C.makeExcludeFilter({ machineExtraNames: '张三 李四' })({ post: '李四', name: '孙八' }) === false, 'name box not post');
@@ -137,16 +179,31 @@ async function saveBlob(d) {
   assert(doc.querySelectorAll('#attResults .filelist-tip').length === 2, '两张卡各带一个文件清单气泡');
   assert(/pointer-events:none/.test(html) && /\.filelist-host:hover \.filelist-tip/.test(html),
     '气泡禁用鼠标事件且由数字区悬浮触发（不闪烁）');
-  assert(/在职无出勤人员明细/.test(probText), '结果区含在职无出勤明细表标题');
-  assert(/吴十/.test(probText), '在职无出勤明细列出吴十');
+  const subtabs = Array.from(doc.querySelectorAll('#attResults .subtab'));
+  assert(subtabs.length === 2, 'result subtabs == 2, got ' + subtabs.length);
+  assert(/在职无出勤人员明细/.test(subtabs[0].textContent) && /打卡项目与系统不一致/.test(subtabs[1].textContent), 'subtab names');
   const subArea = doc.querySelector('#attResults').innerHTML;
-  const noAttTable = Array.from(doc.querySelectorAll('#attResults .att-subhead')).filter(e => /在职无出勤人员明细/.test(e.textContent))[0];
-  assert(!!noAttTable && /蝶城/.test(doc.querySelector('#attResults').textContent) && /<table/.test(subArea), '无出勤明细以表格展示（含蝶城/姓名列）');
-  // 问题清单卡片：只含系统计算问题（周九花名册未匹配），不再含无出勤
-  const probCard = cards.filter(c => /<span class="rc-city">问题清单<\/span>/.test(c.innerHTML))[0];
-  assert(!!probCard, '问题清单卡存在（有花名册未匹配问题）');
-  assert(/未匹配到该员工/.test(probCard.textContent), '问题清单含花名册未匹配提示（周九）');
-  assert(!/在职无出勤|无任何考勤记录/.test(probCard.textContent), '问题清单不含在职无出勤条目');
+  assert(/<table/.test(subArea), 'noatt table rendered');
+  assert(/\u5434\u5341/.test(probText), 'noatt lists wu-shi');
+  const panes = Array.from(doc.querySelectorAll('#attResults .subpane'));
+  assert(panes.length === 2, 'subpanes == 2, got ' + panes.length);
+  assert(/\u8776\u57ce/.test(panes[0].textContent), 'noatt pane has city col');
+  assert(/\u8d75\u516d/.test(panes[1].textContent), 'pm pane has zhao-liu');
+  assert(/\u5458\u5de5\u7f16\u7801/.test(panes[1].textContent) && !/\u662f\u5426\u4e00\u81f4/.test(panes[1].textContent) && /\u4e0d\u4e00\u81f4\u65f6\u95f4\u6bb5/.test(panes[1].textContent) && /\u4e0d\u4e00\u81f4\u5929\u6570/.test(panes[1].textContent), 'pm pane 8-col header');
+  assert(/\u949f\u516c\u5e99\u82b1\u56edB\u533a/.test(panes[1].textContent), 'pm pane shows sys project');
+  const probCard = cards.filter(c => /<span class="rc-city">\u95ee\u9898\u6e05\u5355<\/span>/.test(c.innerHTML))[0];
+  assert(!!probCard, 'problem card exists');
+  assert(/\u672a\u5339\u914d\u5230\u8be5\u5458\u5de5/.test(probCard.textContent), 'problem card has unmatched (zhou-jiu)');
+  assert(!/\u5728\u804c\u65e0\u51fa\u52e4|\u65e0\u4efb\u4f55\u8003\u52e4\u8bb0\u5f55/.test(probCard.textContent), 'problem card no no-att items');
+  assert(!/项目不一致/.test(probCard.textContent), 'problem card no pm cat');
+  const attTabs = probCard ? Array.from(probCard.querySelectorAll('.att-tab')) : [];
+  assert(!attTabs.some(t => /项目不一致/.test(t.textContent)), 'problem tabs have no pm cat');
+  const attPanes = probCard ? Array.from(probCard.querySelectorAll('.att-pane')) : [];
+  assert(attPanes.length === attTabs.length, 'panes == tabs');
+  subtabs[1].click();
+  await sleep(50);
+  assert(panes[1].style.display !== 'none' && panes[0].style.display === 'none', 'subtab switch works');
+
 
   // 4. 用 openpyxl 校验导出文件（verify_att.py）
   console.log(failed ? 'FAILURES: ' + failed : 'ALL_UI_ASSERTS_PASSED');

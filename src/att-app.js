@@ -496,7 +496,7 @@
       '下载汇总结果', 'data-att-group="sum"', false);
     h += '</div>';
 
-    /* 在职无出勤明细（保持现状，放在三卡下面） */
+    /* 在职无出勤 + 打卡项目与系统不一致：网页标签页切换，下载合并成一个文件按标题分 sheet */
     var T = { rows: 0, diff: 0, stat: 0, ded: 0, noAtt: 0 };
     r.cities.forEach(function (c) {
       T.rows += c.shrRows.length + c.rmRows.length;
@@ -510,10 +510,17 @@
     r.cities.forEach(function (c) {
       c.noAttendance.forEach(function (a) { noAttAll.push(a); });
     });
+    var projAll = [];
+    r.cities.forEach(function (c) {
+      (c.projMismatch || []).forEach(function (a) { projAll.push(a); });
+    });
 
-    h += '<div class="att-subhead"><div><span class="t">在职无出勤人员明细</span><span class="n">' +
-      noAttAll.length + ' 人（花名册在册、考勤期内无任何考勤记录）</span></div>' +
-      (noAttAll.length ? '<button class="btn btn-line" id="btnNoAtt">下载明细.xlsx</button>' : '') + '</div>';
+    h += '<div class="sub-head"><div class="subtabs">' +
+      '<button type="button" class="subtab on" data-subtab="0">在职无出勤人员明细<span class="n">' + noAttAll.length + ' 人</span></button>' +
+      '<button type="button" class="subtab" data-subtab="1">打卡项目与系统不一致<span class="n">' + projAll.length + ' 条</span></button>' +
+      '</div>' +
+      ((noAttAll.length || projAll.length) ? '<button class="btn btn-line" id="btnNoAtt">下载明细.xlsx</button>' : '') + '</div>';
+    h += '<div class="subpane" data-subpane="0">';
     if (noAttAll.length) {
       h += '<table class="att-table"><thead><tr>' +
         '<th>蝶城</th><th>姓名</th><th>员工编码</th><th>项目</th><th>入职日期</th><th>离职日期</th></tr></thead><tbody>' +
@@ -524,21 +531,53 @@
     } else {
       h += '<div class="att-empty">无在职无出勤人员</div>';
     }
+    h += '</div>';
+    h += '<div class="subpane" data-subpane="1" style="display:none">';
+    if (projAll.length) {
+      h += '<table class="att-table"><thead><tr>' +
+        '<th>员工编码</th><th>蝶城</th><th>打卡项目</th><th>员工姓名</th><th>系统项目</th><th>岗位</th><th>不一致时间段</th><th>不一致天数</th></tr></thead><tbody>' +
+        projAll.map(function (a) {
+          return '<tr><td>' + esc(a[0]) + '</td><td>' + esc(a[1]) + '</td><td>' + esc(a[2] || '—') + '</td><td>' +
+            esc(a[3] || '—') + '</td><td>' + esc(a[4] || '—') + '</td><td>' + esc(a[5] || '—') + '</td><td>' + esc(a[6] || '—') + '</td><td>' + esc(a[7] == null ? '—' : a[7]) + '</td></tr>';
+        }).join('') + '</tbody></table>';
+    } else {
+      h += '<div class="att-empty">无打卡项目与系统不一致人员</div>';
+    }
+    h += '</div>';
 
-    /* 问题清单放最后（只显示系统计算产生的问题） */
+    /* 问题清单放最后（只显示系统计算产生的问题），按类目标签页切换 */
     if (r.problems.length) {
+      var CATS = ['人员匹配异常', '计算异常'];
+      var groups = CATS.map(function (cat) {
+        return { cat: cat, items: r.problems.filter(function (p) { return (p.cat || '计算异常') === cat; }) };
+      }).filter(function (g) { return g.items.length; });
+      var probItem = function (p) {
+        return '<div class="att-prob-item sev-' + p.sev + '">' +
+          '<span class="badge ' + (p.sev === 'error' ? 'bad' : p.sev === 'warn' ? 'warn' : 'gray') + '">' +
+          (p.sev === 'error' ? '错误' : p.sev === 'warn' ? '提示' : '信息') + '</span> ' +
+          (p.city ? '[' + esc(p.city) + '] ' : '') + esc(p.msg) + '</div>';
+      };
       h += '<div class="result-card"><div class="rc-head"><div><span class="rc-city">问题清单</span>' +
         '<span class="rc-file">' + r.problems.length + ' 条</span></div>' +
-        '<div class="rc-actions"><button class="btn btn-line" id="btnAttProblems">下载问题清单.xlsx</button></div></div>' +
-        '<div class="att-problems">' +
-        r.problems.slice(0, 30).map(function (p) {
-          return '<div class="att-prob-item sev-' + p.sev + '">' +
-            '<span class="badge ' + (p.sev === 'error' ? 'bad' : p.sev === 'warn' ? 'warn' : 'gray') + '">' +
-            (p.sev === 'error' ? '错误' : p.sev === 'warn' ? '提示' : '信息') + '</span> ' +
-            (p.city ? '[' + esc(p.city) + '] ' : '') + esc(p.msg) + '</div>';
-        }).join('') +
-        (r.problems.length > 30 ? '<div class="att-prob-item">…其余 ' + (r.problems.length - 30) + ' 条见下载的问题清单</div>' : '') +
-        '</div></div>';
+        '<div class="rc-actions"><button class="btn btn-line" id="btnAttProblems">下载问题清单.xlsx</button></div></div>';
+      if (groups.length > 1) {
+        h += '<div class="att-tabs">' + groups.map(function (g, i) {
+          return '<button type="button" class="att-tab' + (i === 0 ? ' on' : '') + '" data-atttab="' + i + '">' +
+            esc(g.cat) + ' ' + g.items.length + '</button>';
+        }).join('') + '</div>';
+        h += groups.map(function (g, i) {
+          return '<div class="att-problems att-pane" data-paneproblems="' + i + '"' + (i ? ' style="display:none"' : '') + '>' +
+            g.items.slice(0, 30).map(probItem).join('') +
+            (g.items.length > 30 ? '<div class="att-prob-item">…其余 ' + (g.items.length - 30) + ' 条见下载的问题清单</div>' : '') +
+            '</div>';
+        }).join('');
+      } else {
+        h += '<div class="att-problems">' +
+          groups[0].items.slice(0, 30).map(probItem).join('') +
+          (groups[0].items.length > 30 ? '<div class="att-prob-item">…其余 ' + (groups[0].items.length - 30) + ' 条见下载的问题清单</div>' : '') +
+          '</div>';
+      }
+      h += '</div>';
     }
 
     box.innerHTML = h;
@@ -568,6 +607,21 @@
         next();
       });
     });
+    $$('.att-tab', box).forEach(function (t) {
+      t.addEventListener('click', function () {
+        var idx = t.dataset.atttab;
+        $$('.att-tab', box).forEach(function (x) { x.classList.toggle('on', x === t); });
+        $$('.att-pane', box).forEach(function (p) { p.style.display = p.dataset.paneproblems === idx ? '' : 'none'; });
+      });
+    });
+
+    $$('.subtab', box).forEach(function (t) {
+      t.addEventListener('click', function () {
+        var idx = t.dataset.subtab;
+        $$('.subtab', box).forEach(function (x) { x.classList.toggle('on', x === t); });
+        $$('.subpane', box).forEach(function (p) { p.style.display = p.dataset.subpane === idx ? '' : 'none'; });
+      });
+    });
     var pb = $('#btnAttProblems');
     if (pb) pb.addEventListener('click', function () { downloadProblems(r.problems); });
     var nb = $('#btnNoAtt');
@@ -575,10 +629,15 @@
       W.build({
         zipImpl: Z,
         sheets: [{
-          name: '在职无出勤',
+          name: '在职无出勤人员明细',
           header: ['蝶城', '姓名', '员工编码', '项目', '入职日期', '离职日期'],
           rows: noAttAll,
           cols: [22, 10, 14, 16, 12, 12], headerStyle: 5, dataStyle: 2
+        }, {
+          name: '打卡项目与系统不一致',
+          header: ['员工编码', '蝶城', '打卡项目', '员工姓名', '系统项目', '岗位', '不一致时间段', '不一致天数'],
+          rows: projAll,
+          cols: [14, 14, 16, 10, 16, 12, 14, 10], headerStyle: 5, dataStyle: 2
         }]
       }).then(function (bytes) {
         downloadBlob(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '在职无出勤人员明细.xlsx');
@@ -593,15 +652,16 @@
 
   function downloadProblems(problems) {
     var LV = { error: '错误', warn: '提示', info: '信息' };
-    W.build({
-      zipImpl: Z,
-      sheets: [{
-        name: '问题清单',
-        header: ['蝶城', '工作表', '员工姓名', '说明', '级别'],
-        rows: problems.map(function (p) { return [p.city, p.sheet, p.name, p.msg, LV[p.sev] || p.sev]; }),
+    var CATS = ['人员匹配异常', '计算异常'];
+    var sheets = CATS.map(function (cat) {
+      var rows = problems.filter(function (p) { return (p.cat || '计算异常') === cat; });
+      return {
+        name: cat, header: ['蝶城', '工作表', '员工姓名', '说明', '级别'],
+        rows: rows.map(function (p) { return [p.city, p.sheet, p.name, p.msg, LV[p.sev] || p.sev]; }),
         cols: [12, 14, 10, 80, 8], headerStyle: 5, dataStyle: 2
-      }]
-    }).then(function (bytes) {
+      };
+    });
+    W.build({ zipImpl: Z, sheets: sheets }).then(function (bytes) {
       downloadBlob(new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), '考勤问题清单.xlsx');
     });
   }
